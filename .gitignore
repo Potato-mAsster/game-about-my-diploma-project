@@ -58,4 +58,6 @@ Thumbs.db
 # *.ogg
 # *.wav
 # *.mp4
-# *.mov
+# *.movs
+
+output/
