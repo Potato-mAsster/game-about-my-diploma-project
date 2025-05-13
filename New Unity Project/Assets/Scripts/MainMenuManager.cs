@@ -8,6 +8,7 @@ public class MainMenuManager : MonoBehaviour
 
     public void LoadGame()
     {
+        Debug.Log("Функция LoadGame вызвана!");
         // Здесь может быть логика загрузки сохранения
         Debug.Log("Загрузка игры...");
         SceneManager.LoadScene(gameSceneName);
