@@ -67,56 +67,56 @@ public class InteractableObject : MonoBehaviour
     }
 
     void StartSleeping()
-{
-    Debug.Log("StartSleeping() вызвана");
+    {
+        Debug.Log("StartSleeping() вызвана");
 
-    // Скрываем текст взаимодействия
-    if (interactionUIText != null)
-    {
-        interactionUIText.gameObject.SetActive(false);
-    }
-    else
-    {
-        Debug.LogWarning("interactionUIText is null!");
-    }
-
-    // Отключаем управление игроком
-    PlayerController playerController = player.GetComponent<PlayerController>();
-    if (playerController != null)
-    {
-        playerController.enabled = false;
-    }
-
-    // Запускаем анимацию сна
-    if (playerAnimator != null && !string.IsNullOrEmpty(animationSleepTrigger))
-    {
-        playerAnimator.SetBool(animationSleepTrigger, true);
-    }
-
-    // Запускаем затухание экрана и затем уничтожаем текст и загружаем следующую сцену
-    if (FadeScreen.instance != null)
-    {
-        FadeScreen.instance.FadeOut(() =>
+        // Скрываем текст взаимодействия
+        if (interactionUIText != null)
         {
-            if (interactionUIText != null && interactionUIText.gameObject != null)
-            {
-                Destroy(interactionUIText.gameObject);
-            }
-            LoadNextScene();
-        });
-    }
-    else
-    {
-        Debug.LogError("Не найден экземпляр FadeScreen!");
-        LoadNextScene();
-    }
-}
+            interactionUIText.gameObject.SetActive(false);
+        }
+        else
+        {
+            Debug.LogWarning("interactionUIText is null!");
+        }
 
-void LoadNextScene()
-{
-    Debug.Log("Загружаем сцену: " + nextSceneName);
-    SceneManager.LoadScene(nextSceneName);
-}
+        // Отключаем управление игроком
+        PlayerController playerController = player.GetComponent<PlayerController>();
+        if (playerController != null)
+        {
+            playerController.enabled = false;
+        }
+
+        // Запускаем анимацию сна
+        if (playerAnimator != null && !string.IsNullOrEmpty(animationSleepTrigger))
+        {
+            playerAnimator.SetBool(animationSleepTrigger, true);
+        }
+
+        // Запускаем затухание экрана и затем уничтожаем текст и загружаем следующую сцену
+        if (FadeScreen.instance != null)
+        {
+            FadeScreen.instance.FadeOut(() =>
+            {
+                if (interactionUIText != null && interactionUIText.gameObject != null)
+                {
+                    Destroy(interactionUIText.gameObject);
+                }
+                LoadNextScene();
+            });
+        }
+        else
+        {
+            Debug.LogError("Не найден экземпляр FadeScreen!");
+            LoadNextScene();
+        }
+    }
+
+    void LoadNextScene()
+    {
+        Debug.Log("Загружаем сцену: " + nextSceneName);
+        SceneManager.LoadScene(nextSceneName);
+    }
 
     // Этот метод будет вызываться Unity автоматически при отрисовке в редакторе
     private void OnDrawGizmosSelected()
