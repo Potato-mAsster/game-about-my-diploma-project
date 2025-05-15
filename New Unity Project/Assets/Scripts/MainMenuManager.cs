@@ -31,6 +31,7 @@ public class MainMenuManager : MonoBehaviour
         {
             SimpleSQLite.Open(dbPath);
             Debug.Log("База поднята!");
+            SimpleSQLite.Close();
         }
     }
 
@@ -218,6 +219,7 @@ public class MainMenuManager : MonoBehaviour
     public void ExitGame()
     {
         Debug.Log("Выход из игры...");
+        SimpleSQLite.Close();
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
 #else
