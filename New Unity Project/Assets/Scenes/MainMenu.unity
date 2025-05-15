@@ -219,7 +219,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 43586192}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1243280404}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: 
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &43586192
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2092,6 +2104,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1243280406}
   - component: {fileID: 1243280407}
+  - component: {fileID: 1243280408}
   m_Layer: 0
   m_Name: MainMenuController
   m_TagString: Untagged
@@ -2126,6 +2139,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc7a46c4284b7ef44aa7fbdf432cb6aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1243280408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1243280404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: add8fe1e2aa1e2644a275ada09af8d4e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameSceneName: Game
+  loadGamePanel: {fileID: 0}
+  playerListParent: {fileID: 0}
+  playerButtonPrefab: {fileID: 0}
+  playerNameInputPanel: {fileID: 475779734}
+  playerNameInputField_TMP: {fileID: 321738691}
+  playerNameInputField_UI: {fileID: 0}
+  confirmNameButton: {fileID: 1864441563}
 --- !u!1 &1409511264
 GameObject:
   m_ObjectHideFlags: 0
