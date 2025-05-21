@@ -18,7 +18,6 @@ public class DatabaseTest : MonoBehaviour
                 levelName TEXT NOT NULL,
                 sceneName TEXT NOT NULL,
                 ""order"" INTEGER,
-                difficulty INTEGER,
                 description TEXT
             );";
 
@@ -48,14 +47,12 @@ public class DatabaseTest : MonoBehaviour
             string createUserSettingsTableQuery = @"
             CREATE TABLE IF NOT EXISTS UserSettings (
                 playerId INTEGER PRIMARY KEY,
-                soundVolume REAL DEFAULT 1.0,
                 musicVolume REAL DEFAULT 1.0,
                 resolutionWidth INTEGER DEFAULT 1920,
                 resolutionHeight INTEGER DEFAULT 1080,
                 isFullscreen INTEGER DEFAULT 1,
                 language TEXT DEFAULT 'en',
                 controlMapping TEXT,
-                graphicsQuality INTEGER DEFAULT 1,
                 FOREIGN KEY(playerId) REFERENCES Players(id)
             );";
 

@@ -45,3 +45,11 @@ The following packages were added:
   com.unity.timeline@1.6.5
   com.unity.ugui@1.0.0
   com.unity.visualscripting@1.9.4
+
+=== Wed May 21 21:51:14 2025
+
+Packages were changed.
+Update Mode: mergeDefaultDependencies
+
+The following packages were added:
+  com.unity.postprocessing@3.4.0
