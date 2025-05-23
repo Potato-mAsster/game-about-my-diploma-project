@@ -51,7 +51,7 @@ public class MainMenuManager : MonoBehaviour
 
     public void StartGame()
     {
-        SceneManager.LoadScene("Level1");
+        SceneManager.LoadScene("Level6");
         // Debug.Log("Начало новой игры...");
         // // 1. Создаем новую запись игрока в таблице Players
         // string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
