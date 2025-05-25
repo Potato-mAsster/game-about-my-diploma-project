@@ -9,6 +9,7 @@ public class PlayerController : MonoBehaviour
     public float jumpForce = 7.0f; // Сила прыжка
     private CharacterController controller;
     private float verticalVelocity = -30f;
+    public bool isInputEnabled = true;
 
     // Event function
     private void Start()
@@ -21,6 +22,7 @@ public class PlayerController : MonoBehaviour
     // Event function
     private void Update()
     {
+        if (!isInputEnabled) return;
         // Получаем ввод от игрока
         float horizontalInput = Input.GetAxis("Horizontal");
         float verticalInput = Input.GetAxis("Vertical");

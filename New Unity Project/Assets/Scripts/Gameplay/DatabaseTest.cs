@@ -9,6 +9,7 @@ public class DatabaseTest : MonoBehaviour
         string dbPath = Path.Combine(Application.persistentDataPath, "HypersomniaDB.db");
         if (SimpleSQLite.Open(dbPath))
         {
+            Debug.Log(dbPath);
             Debug.Log("База данных успешно открыта.");
 
             // SQL-запросы для создания таблиц

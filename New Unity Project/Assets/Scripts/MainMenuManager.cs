@@ -25,10 +25,13 @@ public class MainMenuManager : MonoBehaviour
 
     void Start()
     {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         dbPath = Path.Combine(Application.persistentDataPath, "HypersomniaDB.db");
         // Убедитесь, что база данных открыта
         if (SimpleSQLite.dbConnection.Equals(System.IntPtr.Zero))
         {
+                        Debug.Log(dbPath);
             SimpleSQLite.Open(dbPath);
             Debug.Log("База поднята!");
             SimpleSQLite.Close();
@@ -51,40 +54,39 @@ public class MainMenuManager : MonoBehaviour
 
     public void StartGame()
     {
-        SceneManager.LoadScene("Level6");
-        // Debug.Log("Начало новой игры...");
-        // // 1. Создаем новую запись игрока в таблице Players
-        // string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
-        // SimpleSQLite.ExecuteQuery(insertNewPlayerQuery);
+        Debug.Log("Начало новой игры...");
+        // 1. Создаем новую запись игрока в таблице Players
+        string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
+        SimpleSQLite.ExecuteQuery(insertNewPlayerQuery);
 
-        // // 2. Получаем ID только что созданного игрока
-        // List<string[]> playerIdResult = SimpleSQLite.ExecuteQuery("SELECT last_insert_rowid()");
-        // if (playerIdResult.Count > 0 && playerIdResult[0].Length > 0 && int.TryParse(playerIdResult[0][0], out int newPlayerId))
-        // {
-        //     Debug.Log($"Создан новый игрок с ID: {newPlayerId}");
-        //     // 3. Открываем панель ввода имени
-        //     Debug.Log(playerNameInputPanel);
-        //     if (playerNameInputPanel != null)
-        //     {
-
-        //         CanvasGroup cg = playerNameInputPanel.GetComponent<CanvasGroup>();
-        //         if (cg != null)
-        //         {
-        //             cg.alpha = 1;
-        //             cg.interactable = true;
-        //             cg.blocksRaycasts = true;
-        //         }
-        //         else
-        //         {
-        //             Debug.LogError("Компонент CanvasGroup не найден на PlayerNameInputPanel.");
-        //         }
-        //         PlayerPrefs.SetInt("NewPlayerId", newPlayerId);
-        //     }
-        // }
-        // else
-        // {
-        //     Debug.LogError("Не удалось получить ID нового игрока.");
-        // }
+        // 2. Получаем ID только что созданного игрока
+        List<string[]> playerIdResult = SimpleSQLite.ExecuteQuery("SELECT last_insert_rowid()");
+        if (playerIdResult.Count > 0 && playerIdResult[0].Length > 0 && int.TryParse(playerIdResult[0][0], out int newPlayerId))
+        {
+            Debug.Log($"Создан новый игрок с ID: {newPlayerId}");
+            // 3. Открываем панель ввода имени
+            Debug.Log(playerNameInputPanel);
+            if (playerNameInputPanel != null)
+            {
+                
+                CanvasGroup cg = playerNameInputPanel.GetComponent<CanvasGroup>();
+                if (cg != null)
+                {
+                    cg.alpha = 1;
+                    cg.interactable = true;
+                    cg.blocksRaycasts = true;
+                }
+                else
+                {
+                    Debug.LogError("Компонент CanvasGroup не найден на PlayerNameInputPanel.");
+                }
+                PlayerPrefs.SetInt("NewPlayerId", newPlayerId);
+            }
+        }
+        else
+        {
+            Debug.LogError("Не удалось получить ID нового игрока.");
+        }
     }
 
     public void SetPlayerNameAndLoadGame()
@@ -113,7 +115,8 @@ public class MainMenuManager : MonoBehaviour
                     SimpleSQLite.ExecuteQuery(initializeProgressQuery);
                     Debug.Log($"Первый уровень ({firstLevelId}) разблокирован для игрока {newPlayerId}.");
                 }
-
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
                 // 6. Загружаем игровую сцену
                 SceneManager.LoadScene(gameSceneName);
             }
@@ -197,7 +200,8 @@ public class MainMenuManager : MonoBehaviour
             Debug.Log($"Настройки игрока: Звук={settings[0][0]}, Музыка={settings[0][1]}, Разрешение={settings[0][2]}x{settings[0][3]}, Fullscreen={settings[0][4]}, Язык={settings[0][5]}, Управление={settings[0][6]}, Качество={settings[0][7]}");
             // Здесь вы можете применить настройки к вашей игре
         }
-
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         // 4. Загружаем игровую сцену
         SceneManager.LoadScene(gameSceneName);
 
