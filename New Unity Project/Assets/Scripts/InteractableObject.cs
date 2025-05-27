@@ -7,7 +7,7 @@ public class InteractableObject : MonoBehaviour
 {
     public string interactionText = "Спать"; // Текст, который будет отображаться
     public float interactionDistance = 2f; // Дистанция, на которой игрок может взаимодействовать
-    public string nextSceneName = "Level2"; // Название сцены для перехода
+    public string nextSceneName = "Level1"; // Название сцены для перехода
     public string animationSleepTrigger = "Sleep"; // Название триггера анимации сна (если есть)
 
     private GameObject player; // Ссылка на объект игрока

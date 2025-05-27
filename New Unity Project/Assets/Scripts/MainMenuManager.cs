@@ -54,39 +54,40 @@ public class MainMenuManager : MonoBehaviour
 
     public void StartGame()
     {
-        Debug.Log("Начало новой игры...");
-        // 1. Создаем новую запись игрока в таблице Players
-        string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
-        SimpleSQLite.ExecuteQuery(insertNewPlayerQuery);
+        SceneManager.LoadScene("Opening");
+        // Debug.Log("Начало новой игры...");
+        // // 1. Создаем новую запись игрока в таблице Players
+        // string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
+        // SimpleSQLite.ExecuteQuery(insertNewPlayerQuery);
 
-        // 2. Получаем ID только что созданного игрока
-        List<string[]> playerIdResult = SimpleSQLite.ExecuteQuery("SELECT last_insert_rowid()");
-        if (playerIdResult.Count > 0 && playerIdResult[0].Length > 0 && int.TryParse(playerIdResult[0][0], out int newPlayerId))
-        {
-            Debug.Log($"Создан новый игрок с ID: {newPlayerId}");
-            // 3. Открываем панель ввода имени
-            Debug.Log(playerNameInputPanel);
-            if (playerNameInputPanel != null)
-            {
-                
-                CanvasGroup cg = playerNameInputPanel.GetComponent<CanvasGroup>();
-                if (cg != null)
-                {
-                    cg.alpha = 1;
-                    cg.interactable = true;
-                    cg.blocksRaycasts = true;
-                }
-                else
-                {
-                    Debug.LogError("Компонент CanvasGroup не найден на PlayerNameInputPanel.");
-                }
-                PlayerPrefs.SetInt("NewPlayerId", newPlayerId);
-            }
-        }
-        else
-        {
-            Debug.LogError("Не удалось получить ID нового игрока.");
-        }
+        // // 2. Получаем ID только что созданного игрока
+        // List<string[]> playerIdResult = SimpleSQLite.ExecuteQuery("SELECT last_insert_rowid()");
+        // if (playerIdResult.Count > 0 && playerIdResult[0].Length > 0 && int.TryParse(playerIdResult[0][0], out int newPlayerId))
+        // {
+        //     Debug.Log($"Создан новый игрок с ID: {newPlayerId}");
+        //     // 3. Открываем панель ввода имени
+        //     Debug.Log(playerNameInputPanel);
+        //     if (playerNameInputPanel != null)
+        //     {
+
+        //         CanvasGroup cg = playerNameInputPanel.GetComponent<CanvasGroup>();
+        //         if (cg != null)
+        //         {
+        //             cg.alpha = 1;
+        //             cg.interactable = true;
+        //             cg.blocksRaycasts = true;
+        //         }
+        //         else
+        //         {
+        //             Debug.LogError("Компонент CanvasGroup не найден на PlayerNameInputPanel.");
+        //         }
+        //         PlayerPrefs.SetInt("NewPlayerId", newPlayerId);
+        //     }
+        // }
+        // else
+        // {
+        //     Debug.LogError("Не удалось получить ID нового игрока.");
+        // }
     }
 
     public void SetPlayerNameAndLoadGame()

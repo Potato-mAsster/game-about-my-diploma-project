@@ -257,6 +257,7 @@ MonoBehaviour:
   moveSpeed: 5
   gravityMultiplier: 2
   jumpForce: 7
+  isInputEnabled: 1
 --- !u!95 &249447956
 Animator:
   serializedVersion: 5
@@ -290,6 +291,7 @@ GameObject:
   - component: {fileID: 322887765}
   - component: {fileID: 322887764}
   - component: {fileID: 322887763}
+  - component: {fileID: 322887766}
   m_Layer: 5
   m_Name: SleepText
   m_TagString: Untagged
@@ -435,6 +437,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 322887761}
   m_CullTransparentMesh: 1
+--- !u!114 &322887766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322887761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43de76d37012d84cb415edea01b557d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTextComponentTMP: {fileID: 322887764}
+  clearTextContent: 0
+  disableGameObject: 1
 --- !u!1 &454601680
 GameObject:
   m_ObjectHideFlags: 0
@@ -706,6 +723,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sensitivity: 2
   maxYAngle: 80
+  isInputEnabled: 1
 --- !u!1 &630175781
 GameObject:
   m_ObjectHideFlags: 0
