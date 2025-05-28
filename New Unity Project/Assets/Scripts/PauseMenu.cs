@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using UnityEngine.SceneManagement; // Обязательно для работы со сценами
 
 public class PauseMenu : MonoBehaviour
 {
@@ -9,9 +9,13 @@ public class PauseMenu : MonoBehaviour
     public PlayerController playerController; 
     public CameraController cameraController;
     public AudioSource musicAudioSource; 
+
     void Start()
     {
         pauseMenuUI.SetActive(false);
+        // Убедимся, что время не заморожено, если это первая загрузка сцены
+        // или если предыдущая сцена завершилась некорректно.
+        Time.timeScale = 1f; 
     }
 
     void Update()
@@ -32,38 +36,50 @@ public class PauseMenu : MonoBehaviour
     public void Pause()
     {
         pauseMenuUI.SetActive(true);
-        Time.timeScale = 0f;
+        Time.timeScale = 0f; // Замораживаем время игры
         isPaused = true;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None; // Разблокируем курсор
+        Cursor.visible = true; // Делаем курсор видимым
 
-        playerController.isInputEnabled = false;
-        cameraController.isInputEnabled = false;  // Отключаем ввод мыши
-        musicAudioSource.Pause();
+        if (playerController != null)
+            playerController.isInputEnabled = false; // Отключаем ввод игрока
+        if (cameraController != null)
+            cameraController.isInputEnabled = false; // Отключаем ввод камеры
+        if (musicAudioSource != null)
+            musicAudioSource.Pause(); // Приостанавливаем музыку
     }
 
     public void Resume()
     {
         pauseMenuUI.SetActive(false);
-        Time.timeScale = 1f;
+        Time.timeScale = 1f; // Восстанавливаем время игры
         isPaused = false;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked; // Блокируем курсор в центре экрана
+        Cursor.visible = false; // Скрываем курсор
 
-        playerController.isInputEnabled = true;
-        cameraController.isInputEnabled = true;   // Включаем ввод мыши
-        musicAudioSource.UnPause();
-}
-
-    public void Restart()
-    {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (playerController != null)
+            playerController.isInputEnabled = true; // Включаем ввод игрока
+        if (cameraController != null)
+            cameraController.isInputEnabled = true;  // Включаем ввод камеры
+        if (musicAudioSource != null)
+            musicAudioSource.UnPause(); // Возобновляем музыку
     }
+
+public void Restart()
+{
+    LeafCollector.leafCount = 0; // Сбрасываем счетчик листьев.
+    
+    Time.timeScale = 1f; // Убедитесь, что время нормальное.
+
+    // Устанавливаем текущую сцену как целевую для перезагрузки через экран загрузки
+    LoadingScreenManager.sceneToLoad = SceneManager.GetActiveScene().name; // Используем имя текущей сцены
+    // Загружаем сцену LoadingScreen
+    SceneManager.LoadScene("LoadingScreen"); 
+}
 
     public void QuitGame()
     {
-        Time.timeScale = 1f;
+        Time.timeScale = 1f; // Убеждаемся, что время нормальное перед выходом
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false; // Только для редактора
 #else
@@ -74,12 +90,14 @@ public class PauseMenu : MonoBehaviour
     public void OpenSettings()
     {
         pauseMenuUI.SetActive(false);
-        settingsMenuUI.SetActive(true);
+        if (settingsMenuUI != null)
+            settingsMenuUI.SetActive(true);
     }
 
     public void CloseSettings()
     {
-        settingsMenuUI.SetActive(false);
+        if (settingsMenuUI != null)
+            settingsMenuUI.SetActive(false);
         pauseMenuUI.SetActive(true);
     }
 }

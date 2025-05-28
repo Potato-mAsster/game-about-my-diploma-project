@@ -8,7 +8,11 @@ using UnityEngine.UI; // Если используете стандартный 
 
 public class MainMenuManager : MonoBehaviour
 {
-    public string gameSceneName = "Game";
+    // Ваша основная игровая сцена, которая будет загружаться после выбора игрока
+    public string gameSceneName = "Level0"; // Убедитесь, что это имя вашей первой игровой сцены
+
+    // Сцена, которая загружается после "Новой игры" (интро, катсцена и т.д.)
+    public string openingSceneName = "Opening"; // Убедитесь, что это имя вашей интро-сцены
 
     [Header("Панель загрузки игры")]
     public GameObject loadGamePanel;
@@ -18,7 +22,7 @@ public class MainMenuManager : MonoBehaviour
     [Header("Панель ввода имени")]
     public GameObject playerNameInputPanel;
     public TMP_InputField playerNameInputField_TMP; // Для TextMeshPro
-    public InputField playerNameInputField_UI;   // Для стандартного UI
+    public InputField playerNameInputField_UI;    // Для стандартного UI
     public Button confirmNameButton;
 
     private string dbPath;
@@ -27,35 +31,58 @@ public class MainMenuManager : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        // Гарантируем, что время игры нормальное при старте меню
+        Time.timeScale = 1f;
+
         dbPath = Path.Combine(Application.persistentDataPath, "HypersomniaDB.db");
         // Убедитесь, что база данных открыта
-        if (SimpleSQLite.dbConnection.Equals(System.IntPtr.Zero))
+        // Здесь предполагается, что SimpleSQLite.dbConnection - это статический член,
+        // который проверяет, установлено ли соединение.
+        // Возможно, вам нужен более надежный способ управления подключением к БД.
+        if (SimpleSQLite.dbConnection.Equals(System.IntPtr.Zero)) // Проверяем, что соединение не установлено
         {
-                        Debug.Log(dbPath);
-            SimpleSQLite.Open(dbPath);
-            Debug.Log("База поднята!");
-            SimpleSQLite.Close();
-        }
-    }
-
-    public void LoadGame()
-    {
-        Debug.Log("Функция LoadGame вызвана!");
-        if (loadGamePanel != null)
-        {
-            loadGamePanel.SetActive(true);/////////
-            LoadPlayerList();
+            Debug.Log($"[MainMenuManager] Попытка открыть базу данных по пути: {dbPath}");
+            SimpleSQLite.Open(dbPath); // Открываем соединение
+            Debug.Log("[MainMenuManager] База данных поднята!");
+            SimpleSQLite.Close(); // Закрываем соединение после проверки/инициализации
         }
         else
         {
-            Debug.LogError("Панель загрузки игры не назначена.");
+            Debug.Log("[MainMenuManager] База данных уже открыта или не требуется переоткрытие.");
         }
     }
 
-    public void StartGame()
+    // Метод, который вызывается кнопкой "Загрузить игру"
+    public void LoadGame()
     {
-        SceneManager.LoadScene("Opening");
-        // Debug.Log("Начало новой игры...");
+        Debug.Log("[MainMenuManager] Функция LoadGame вызвана!");
+        if (loadGamePanel != null)
+        {
+            loadGamePanel.SetActive(true);
+            LoadPlayerList(); // Загружаем список игроков для выбора
+        }
+        else
+        {
+            Debug.LogError("[MainMenuManager] Панель загрузки игры не назначена.");
+        }
+    }
+
+    // Метод, который вызывается кнопкой "Новая игра"
+    public void StartNewGame() // Переименовал для ясности, если есть также LoadGame
+    {
+        Debug.Log("[MainMenuManager] Начало новой игры...");
+        
+        // --- НОВАЯ ЛОГИКА: ИСПОЛЬЗУЕМ ЭКРАН ЗАГРУЗКИ ---
+        LoadingScreenManager.sceneToLoad = openingSceneName; // Устанавливаем целевую сцену
+        SceneManager.LoadScene("LoadingScreen"); // Загружаем экран загрузки
+
+        // Закомментированный код для создания нового игрока.
+        // Если вы хотите, чтобы ввод имени был ДО экрана загрузки:
+        // Вам нужно будет перенести логику LoadScene(openingSceneName) в SetPlayerNameAndLoadGame().
+        // Если ввод имени должен быть ПОСЛЕ экрана загрузки:
+        // Тогда логика создания игрока и открытия панели ввода имени должна быть в скрипте OpeningSceneManager.
+        
         // // 1. Создаем новую запись игрока в таблице Players
         // string insertNewPlayerQuery = "INSERT INTO Players (creationDate) VALUES (strftime('%s','now'))";
         // SimpleSQLite.ExecuteQuery(insertNewPlayerQuery);
@@ -64,12 +91,11 @@ public class MainMenuManager : MonoBehaviour
         // List<string[]> playerIdResult = SimpleSQLite.ExecuteQuery("SELECT last_insert_rowid()");
         // if (playerIdResult.Count > 0 && playerIdResult[0].Length > 0 && int.TryParse(playerIdResult[0][0], out int newPlayerId))
         // {
-        //     Debug.Log($"Создан новый игрок с ID: {newPlayerId}");
+        //     Debug.Log($"[MainMenuManager] Создан новый игрок с ID: {newPlayerId}");
         //     // 3. Открываем панель ввода имени
-        //     Debug.Log(playerNameInputPanel);
+        //     Debug.Log($"[MainMenuManager] Открытие панели ввода имени: {playerNameInputPanel}");
         //     if (playerNameInputPanel != null)
         //     {
-
         //         CanvasGroup cg = playerNameInputPanel.GetComponent<CanvasGroup>();
         //         if (cg != null)
         //         {
@@ -79,17 +105,18 @@ public class MainMenuManager : MonoBehaviour
         //         }
         //         else
         //         {
-        //             Debug.LogError("Компонент CanvasGroup не найден на PlayerNameInputPanel.");
+        //             Debug.LogError("[MainMenuManager] Компонент CanvasGroup не найден на PlayerNameInputPanel.");
         //         }
-        //         PlayerPrefs.SetInt("NewPlayerId", newPlayerId);
+        //         PlayerPrefs.SetInt("NewPlayerId", newPlayerId); // Сохраняем ID, чтобы использовать в SetPlayerNameAndLoadGame
         //     }
         // }
         // else
         // {
-        //     Debug.LogError("Не удалось получить ID нового игрока.");
+        //     Debug.LogError("[MainMenuManager] Не удалось получить ID нового игрока.");
         // }
     }
 
+    // Метод, который вызывается кнопкой "Подтвердить имя"
     public void SetPlayerNameAndLoadGame()
     {
         string playerName = "";
@@ -105,7 +132,7 @@ public class MainMenuManager : MonoBehaviour
                 // 4. Обновляем имя игрока в таблице Players
                 string updatePlayerNameQuery = $"UPDATE Players SET playerName = '{playerName}', lastPlayedDate = strftime('%s','now') WHERE id = {newPlayerId}";
                 SimpleSQLite.ExecuteQuery(updatePlayerNameQuery);
-                Debug.Log($"Имя игрока с ID {newPlayerId} установлено на '{playerName}'.");
+                Debug.Log($"[MainMenuManager] Имя игрока с ID {newPlayerId} установлено на '{playerName}'.");
 
                 // 5. Инициализируем прогресс для нового игрока
                 List<string[]> firstLevelResult = SimpleSQLite.ExecuteQuery("SELECT id FROM Levels ORDER BY `order` ASC LIMIT 1");
@@ -114,16 +141,19 @@ public class MainMenuManager : MonoBehaviour
                     string firstLevelId = firstLevelResult[0][0];
                     string initializeProgressQuery = $"INSERT OR IGNORE INTO PlayerProgress (playerId, levelId, isUnlocked) VALUES ({newPlayerId}, '{firstLevelId}', 1)";
                     SimpleSQLite.ExecuteQuery(initializeProgressQuery);
-                    Debug.Log($"Первый уровень ({firstLevelId}) разблокирован для игрока {newPlayerId}.");
+                    Debug.Log($"[MainMenuManager] Первый уровень ({firstLevelId}) разблокирован для игрока {newPlayerId}.");
                 }
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
-                // 6. Загружаем игровую сцену
-                SceneManager.LoadScene(gameSceneName);
+                
+                // --- НОВАЯ ЛОГИКА: ИСПОЛЬЗУЕМ ЭКРАН ЗАГРУЗКИ ---
+                // Загружаем основную игровую сцену после ввода имени (если вы выбрали этот путь)
+                LoadingScreenManager.sceneToLoad = gameSceneName;
+                SceneManager.LoadScene("LoadingScreen");
             }
             else
             {
-                Debug.LogError("ID нового игрока не найден.");
+                Debug.LogError("[MainMenuManager] ID нового игрока не найден. Невозможно установить имя.");
             }
 
             // Скрываем панель ввода имени
@@ -131,17 +161,21 @@ public class MainMenuManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Пожалуйста, введите имя игрока.");
+            Debug.LogWarning("[MainMenuManager] Пожалуйста, введите имя игрока.");
         }
     }
     
+    // Метод для загрузки списка сохраненных игр (игроков)
     void LoadPlayerList()
     {
+        // Обязательно откройте соединение с БД перед выполнением запроса
+        SimpleSQLite.Open(dbPath); 
         List<string[]> players = SimpleSQLite.ExecuteQuery("SELECT id, playerName FROM Players");
+        SimpleSQLite.Close(); // Закройте соединение после использования
 
         foreach (Transform child in playerListParent)
         {
-            Destroy(child.gameObject);
+            Destroy(child.gameObject); // Удаляем старые кнопки, если они есть
         }
 
         foreach (string[] playerInfo in players)
@@ -150,82 +184,97 @@ public class MainMenuManager : MonoBehaviour
             {
                 string playerName = playerInfo[1];
                 GameObject playerButtonGO = Instantiate(playerButtonPrefab, playerListParent);
+                
+                // Проверяем наличие TextMeshProUGUI или стандартного Text
                 TMPro.TextMeshProUGUI buttonTextTMP = playerButtonGO.GetComponentInChildren<TMPro.TextMeshProUGUI>();
                 UnityEngine.UI.Text buttonTextUI = playerButtonGO.GetComponentInChildren<UnityEngine.UI.Text>();
 
                 if (buttonTextTMP != null)
                 {
-                    buttonTextTMP.text = playerName != null ? playerName : "Игрок без имени";
+                    buttonTextTMP.text = string.IsNullOrEmpty(playerName) ? "Игрок без имени" : playerName;
                 }
                 else if (buttonTextUI != null)
                 {
-                    buttonTextUI.text = playerName != null ? playerName : "Игрок без имени";
+                    buttonTextUI.text = string.IsNullOrEmpty(playerName) ? "Игрок без имени" : playerName;
                 }
 
                 UnityEngine.UI.Button playerButton = playerButtonGO.GetComponent<UnityEngine.UI.Button>();
                 if (playerButton != null)
                 {
+                    // Добавляем слушатель к кнопке, чтобы при нажатии загружалась выбранная игра
                     playerButton.onClick.AddListener(() => LoadSelectedGame(playerId));
                 }
                 else
                 {
-                    Debug.LogError("Префаб кнопки игрока не имеет компонента Button.");
+                    Debug.LogError("[MainMenuManager] Префаб кнопки игрока не имеет компонента Button. Невозможно назначить слушатель.");
                 }
             }
             else
             {
-                Debug.LogError("Ошибка при получении информации об игроке из БД.");
+                Debug.LogError("[MainMenuManager] Ошибка при получении информации об игроке из БД (неверный формат данных).");
             }
         }
     }
 
+    // Метод, который вызывается при выборе игрока из списка загрузки
     public void LoadSelectedGame(int playerId)
     {
-        Debug.Log($"Загрузка игры для игрока с ID: {playerId}");
+        Debug.Log($"[MainMenuManager] Загрузка игры для игрока с ID: {playerId}");
+        
+        // Открываем соединение с БД для выполнения запросов
+        SimpleSQLite.Open(dbPath);
+
         // 1. Обновляем дату последнего входа
         string updateLastPlayedQuery = $"UPDATE Players SET lastPlayedDate = strftime('%s','now') WHERE id = {playerId}";
         SimpleSQLite.ExecuteQuery(updateLastPlayedQuery);
 
-        // 2. Загружаем прогресс игрока
+        // 2. Загружаем прогресс игрока (для использования в GameManager или других местах)
         List<string[]> progress = SimpleSQLite.ExecuteQuery($"SELECT levelId, isUnlocked, isCompleted FROM PlayerProgress WHERE playerId = {playerId}");
+        // Здесь вы можете передать этот прогресс в свой GameManager/SaveLoadManager.
+        // Например: GameManager.Instance.LoadPlayerProgress(progress);
         foreach (string[] row in progress)
         {
-            Debug.Log($"Уровень: {row[0]}, Разблокирован: {row[1]}, Пройден: {row[2]}");
-            // Здесь вы можете загрузить состояние уровней в вашей игре
+            Debug.Log($"[MainMenuManager] Прогресс: Уровень={row[0]}, Разблокирован={row[1]}, Пройден={row[2]}");
+            // В реальной игре здесь вы бы сохраняли этот прогресс куда-то (например, в PlayerData Singleton)
         }
 
-        // 3. Загружаем настройки игрока
+        // 3. Загружаем настройки игрока (для использования в GameManager/AudioManager)
         List<string[]> settings = SimpleSQLite.ExecuteQuery($"SELECT soundVolume, musicVolume, resolutionWidth, resolutionHeight, isFullscreen, language, controlMapping, graphicsQuality FROM UserSettings WHERE playerId = {playerId}");
         if (settings.Count > 0 && settings[0].Length > 0)
         {
-            Debug.Log($"Настройки игрока: Звук={settings[0][0]}, Музыка={settings[0][1]}, Разрешение={settings[0][2]}x{settings[0][3]}, Fullscreen={settings[0][4]}, Язык={settings[0][5]}, Управление={settings[0][6]}, Качество={settings[0][7]}");
-            // Здесь вы можете применить настройки к вашей игре
+            Debug.Log($"[MainMenuManager] Настройки игрока: Звук={settings[0][0]}, Музыка={settings[0][1]}, Разрешение={settings[0][2]}x{settings[0][3]}, Fullscreen={settings[0][4]}, Язык={settings[0][5]}, Управление={settings[0][6]}, Качество={settings[0][7]}");
+            // Здесь вы можете применить настройки к вашей игре через AudioManager, SettingsManager и т.д.
         }
+
+        SimpleSQLite.Close(); // Закрываем соединение после выполнения всех запросов
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        // 4. Загружаем игровую сцену
-        SceneManager.LoadScene(gameSceneName);
-
-        // 5. Скрываем панель загрузки
+        
+        // 5. Скрываем панель загрузки игры (если она была открыта)
         if (loadGamePanel != null) loadGamePanel.SetActive(false);
+
+        // --- НОВАЯ ЛОГИКА: ИСПОЛЬЗУЕМ ЭКРАН ЗАГРУЗКИ ---
+        LoadingScreenManager.sceneToLoad = gameSceneName; // Устанавливаем целевую игровую сцену
+        SceneManager.LoadScene("LoadingScreen"); // Загружаем экран загрузки
     }
 
     public void OpenSettings()
     {
-        Debug.Log("Открытие настроек...");
+        Debug.Log("[MainMenuManager] Открытие настроек...");
         // Здесь может быть логика открытия панели настроек
     }
 
     public void OpenAbout()
     {
-        Debug.Log("Информация об авторе...");
+        Debug.Log("[MainMenuManager] Информация об авторе...");
         // Здесь может быть логика открытия панели "Об авторе"
     }
 
     public void ExitGame()
     {
-        Debug.Log("Выход из игры...");
-        SimpleSQLite.Close();
+        Debug.Log("[MainMenuManager] Выход из игры...");
+        SimpleSQLite.Close(); // Закрываем соединение с БД перед выходом
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
 #else

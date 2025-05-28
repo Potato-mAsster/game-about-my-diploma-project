@@ -1,127 +1,153 @@
-using UnityEngine;
-using UnityEngine.UI; // Для работы с UI элементами (текстом)
-using UnityEngine.SceneManagement; // Для загрузки новых сцен
-using TMPro;
+using UnityEngine; // ОБЯЗАТЕЛЬНО
+using UnityEngine.UI; // ОБЯЗАТЕЛЬНО, если используете стандартный UnityEngine.UI.Text (хотя у вас TMPro)
+using UnityEngine.SceneManagement; // ОБЯЗАТЕЛЬНО
+using TMPro; // ОБЯЗАТЕЛЬНО
 
 public class InteractableObject : MonoBehaviour
 {
-    public string interactionText = "Спать"; // Текст, который будет отображаться
-    public float interactionDistance = 2f; // Дистанция, на которой игрок может взаимодействовать
-    public string nextSceneName = "Level1"; // Название сцены для перехода
-    public string animationSleepTrigger = "Sleep"; // Название триггера анимации сна (если есть)
+    [Header("Настройки Взаимодействия")]
+    [Tooltip("Текст, который будет отображаться, когда игрок находится рядом (например, 'Спать', 'Использовать').")]
+    public string interactionText = "Спать"; 
+    [Tooltip("Максимальная дистанция, на которой игрок может взаимодействовать с этим объектом.")]
+    public float interactionDistance = 2f; 
+    [Tooltip("Название сцены, которая будет загружена после успешного взаимодействия.")]
+    public string nextSceneName = "Level1"; 
+    
+    [Header("Настройки Анимации Игрока")]
+    [Tooltip("Название булевого параметра триггера анимации сна игрока (например, 'IsSleeping').")]
+    public string animationSleepBool = "IsSleeping"; 
 
-    private GameObject player; // Ссылка на объект игрока
-    private TextMeshProUGUI interactionUIText; // Ссылка на текстовый элемент UI
-    private Animator playerAnimator; // Ссылка на аниматор игрока (если есть)
-    private bool canInteract = false; // Флаг, показывающий, может ли игрок взаимодействовать
+    [Header("Ссылки на UI")]
+    [Tooltip("Перетащите сюда ваш текстовый UI-элемент (TextMeshProUGUI) из Canvas.")]
+    public TextMeshProUGUI interactionUIText; 
+    
+    // Ссылки на контроллеры игрока и камеры
+    private GameObject player; 
+    private Animator playerAnimator; 
+    private PlayerController playerController; 
+    private CameraController cameraController; 
+
+    private bool canInteract = false; 
+    private bool isInteracting = false; 
 
     void Start()
     {
-        // Находим игрока по тегу "Player". Убедись, что у твоего игрока есть такой тег.
         player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
-            Debug.LogError("Не найден объект игрока с тегом 'Player'!");
-            enabled = false; // Отключаем скрипт, чтобы избежать ошибок
+            Debug.LogError("[InteractableObject] Не найден объект игрока с тегом 'Player'! Отключаем скрипт.");
+            enabled = false; 
             return;
         }
 
-        // Находим UI Text с именем "InteractionText". Создадим его позже.
-        interactionUIText = GameObject.Find("InteractionText")?.GetComponent<TextMeshProUGUI>();
+        playerController = player.GetComponent<PlayerController>();
+        cameraController = player.GetComponentInChildren<CameraController>();
+        playerAnimator = player.GetComponent<Animator>(); 
+
+        if (playerController == null) Debug.LogWarning("[InteractableObject] PlayerController не найден на игроке.");
+        if (cameraController == null) Debug.LogWarning("[InteractableObject] CameraController не найден на игроке или его дочерних элементах.");
+        if (playerAnimator == null) Debug.LogWarning("[InteractableObject] Animator не найден на игроке.");
+
+
         if (interactionUIText == null)
         {
-            Debug.LogError("Не найден UI Text объект с именем 'InteractionText'!");
-            enabled = false;
-            return;
+            interactionUIText = GameObject.Find("InteractionText")?.GetComponent<TextMeshProUGUI>();
+            if (interactionUIText == null)
+            {
+                Debug.LogError("[InteractableObject] UI Text объект с именем 'InteractionText' не найден или не назначен! Отключаем скрипт.");
+                enabled = false;
+                return;
+            }
         }
-        interactionUIText.gameObject.SetActive(false); // Скрываем текст при старте
-
-        // Получаем компонент Animator у игрока, если он есть
-        playerAnimator = player.GetComponent<Animator>();
+        interactionUIText.gameObject.SetActive(false); 
     }
 
     void Update()
     {
-        // Проверяем расстояние между игроком и этим объектом
+        if (isInteracting) return;
+
         float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
 
         if (distanceToPlayer <= interactionDistance)
         {
-            // Если игрок достаточно близко, показываем текст и разрешаем взаимодействие
-            interactionUIText.text = interactionText;
-            interactionUIText.gameObject.SetActive(true);
+            if (!interactionUIText.gameObject.activeSelf) 
+            {
+                interactionUIText.text = interactionText;
+                interactionUIText.gameObject.SetActive(true);
+            }
             canInteract = true;
 
-            // Проверяем нажатие клавиши "E"
-            if (Input.GetKeyDown(KeyCode.E) && canInteract)
+            if (Input.GetKeyDown(KeyCode.E))
             {
-                StartSleeping();
+                StartInteractionSequence();
             }
         }
         else
         {
-            // Если игрок далеко, скрываем текст и запрещаем взаимодействие
-            interactionUIText.gameObject.SetActive(false);
+            if (interactionUIText.gameObject.activeSelf) 
+            {
+                interactionUIText.gameObject.SetActive(false);
+            }
             canInteract = false;
         }
     }
 
-    void StartSleeping()
+    void StartInteractionSequence()
     {
-        Debug.Log("StartSleeping() вызвана");
+        Debug.Log("[InteractableObject] StartInteractionSequence() вызвана.");
+        isInteracting = true; 
 
-        // Скрываем текст взаимодействия
         if (interactionUIText != null)
         {
             interactionUIText.gameObject.SetActive(false);
         }
-        else
-        {
-            Debug.LogWarning("interactionUIText is null!");
-        }
 
-        // Отключаем управление игроком
-        PlayerController playerController = player.GetComponent<PlayerController>();
         if (playerController != null)
         {
-            playerController.enabled = false;
+            playerController.enabled = false; 
         }
-
-        // Запускаем анимацию сна
-        if (playerAnimator != null && !string.IsNullOrEmpty(animationSleepTrigger))
+        if (cameraController != null)
         {
-            playerAnimator.SetBool(animationSleepTrigger, true);
+            cameraController.enabled = false; 
+        }
+        
+        if (playerAnimator != null && !string.IsNullOrEmpty(animationSleepBool))
+        {
+            playerAnimator.SetBool(animationSleepBool, true); 
         }
 
-        // Запускаем затухание экрана и затем уничтожаем текст и загружаем следующую сцену
         if (FadeScreen.instance != null)
         {
             FadeScreen.instance.FadeOut(() =>
             {
-                if (interactionUIText != null && interactionUIText.gameObject != null)
+                if (playerAnimator != null && !string.IsNullOrEmpty(animationSleepBool))
                 {
-                    Destroy(interactionUIText.gameObject);
+                    playerAnimator.SetBool(animationSleepBool, false); 
                 }
+
                 LoadNextScene();
             });
         }
         else
         {
-            Debug.LogError("Не найден экземпляр FadeScreen!");
+            Debug.LogError("[InteractableObject] Не найден экземпляр FadeScreen! Загружаем сцену напрямую.");
             LoadNextScene();
         }
     }
 
     void LoadNextScene()
     {
-        Debug.Log("Загружаем сцену: " + nextSceneName);
-        SceneManager.LoadScene(nextSceneName);
+        Debug.Log("[InteractableObject] Загружаем сцену через экран загрузки: " + nextSceneName);
+        Time.timeScale = 1f; 
+
+        // Устанавливаем целевую сцену для LoadingScreenManager
+        LoadingScreenManager.sceneToLoad = nextSceneName; 
+        // Загружаем сцену LoadingScreen
+        SceneManager.LoadScene("LoadingScreen"); 
     }
 
-    // Этот метод будет вызываться Unity автоматически при отрисовке в редакторе
     private void OnDrawGizmosSelected()
     {
-        // Рисуем окружность вокруг объекта, показывая радиус взаимодействия
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, interactionDistance);
     }
