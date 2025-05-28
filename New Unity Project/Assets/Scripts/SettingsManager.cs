@@ -3,42 +3,44 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Audio;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement; // Добавляем для работы с событиями загрузки сцен (если нужно)
 
 public class SettingsManager : MonoBehaviour
 {
-    // --- Синглтон паттерн (очень рекомендуется) ---
-    // Это гарантирует, что у вас всегда будет только ОДИН экземпляр этого менеджера
+    // --- Синглтон паттерн (без DontDestroyOnLoad) ---
+    // Этот менеджер будет существовать только в пределах одной сцены.
+    // При переходе на новую сцену он будет уничтожен вместе со сценой
+    // и создан заново, если присутствует в новой сцене.
     public static SettingsManager Instance { get; private set; }
 
     private void Awake()
     {
-        // Проверяем, существует ли уже экземпляр этого менеджера
+        // Проверяем, существует ли уже экземпляр этого менеджера В ЭТОЙ СЦЕНЕ
+        // (если этот скрипт размещен на нескольких объектах в одной сцене)
         if (Instance == null)
         {
-            // Если нет, то этот экземпляр становится единственным
+            // Если нет, то этот экземпляр становится единственным для этой сцены
             Instance = this;
-            // И мы говорим Unity НЕ уничтожать этот GameObject при загрузке новой сцены
-            DontDestroyOnLoad(gameObject);
-            Debug.Log(gameObject.name + " помечен как DontDestroyOnLoad.");
+            // DontDestroyOnLoad(gameObject); // ЭТА СТРОКА УДАЛЕНА
+            // Debug.Log(gameObject.name + " помечен как DontDestroyOnLoad."); // И это сообщение тоже убираем
         }
         else
         {
-            // Если экземпляр уже существует, значит, мы загрузили новую сцену,
-            // и там уже есть старый менеджер. Новый нам не нужен, уничтожаем его.
-            Debug.LogWarning(gameObject.name + " попытка создания дубликата. Уничтожаю.");
+            // Если экземпляр уже существует в этой сцене, уничтожаем дубликат
+            Debug.LogWarning(gameObject.name + " попытка создания дубликата В ЭТОЙ СЦЕНЕ. Уничтожаю.");
             Destroy(gameObject);
         }
     }
 
     // ... остальной код вашего SettingsManager ...
     // (методы Start(), SetMusicVolume, LoadSettings и т.д.)
-    // Все они остаются без изменений
     // ...
 
     [Header("UI References")]
     public Slider musicVolumeSlider;
     public Slider sfxVolumeSlider;
     public TMP_Dropdown resolutionDropdown;
+    public GameObject settingsPanelUI; // Ссылка на саму панель настроек
 
     [Header("Audio Mixer")]
     public AudioMixer mainMixer;
@@ -54,41 +56,43 @@ public class SettingsManager : MonoBehaviour
 
     void Start()
     {
-        // Здесь может потребоваться дополнительная проверка, если UI элементы
-        // находятся в сцене, которая *уничтожается* при переходе.
-        // Если SettingsManager является DontDestroyOnLoad, а его UI элементы - нет,
-        // то ссылки на UI элементы будут null при загрузке новой сцены.
-        // В этом случае, вам нужно будет найти UI элементы в новой сцене
-        // после ее загрузки (например, в методе, который вызывается после SceneManager.sceneLoaded)
-        // или передавать им ссылки.
+        // Теперь Start() будет вызываться при каждой загрузке сцены,
+        // если объект с этим скриптом присутствует в новой сцене.
+        // Поэтому здесь нужно будет заново привязывать UI элементы,
+        // если они находятся на Canvas, который создается в каждой сцене.
 
-        // Для настроек UI обычно лучше, чтобы сам SettingsManager был DontDestroyOnLoad,
-        // а UI элементы настроек были в одной сцене (например, Главное меню),
-        // и вы показывали/скрывали эту сцену или просто UI панель.
-        // Если же UI элементы тоже должны быть DontDestroyOnLoad, то их также нужно помечать.
-
-        // Инициализируем дропдаун разрешения
-        SetupResolutionDropdown(); // Это будет работать, если UI элементы тоже DontDestroyOnLoad
-                                  // ИЛИ если этот Start() вызывается только в первой сцене
-
-        LoadSettings();
-
-        if (musicVolumeSlider != null)
+        // Предполагаем, что UI элементы настроек находятся на панели settingsPanelUI,
+        // которая должна быть назначена в инспекторе или найдена в Start().
+        if (settingsPanelUI != null)
         {
-            musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+            // Привязываем UI элементы, если они назначены или найдены
+            // (если вы не перетащили их вручную, они будут null)
+            if (musicVolumeSlider == null) musicVolumeSlider = settingsPanelUI.GetComponentInChildren<Slider>();
+            // Используйте Find("SFXSlider") или GetComponentInChildren<Slider>() по порядку, если их несколько
+            // Если вы назначаете вручную, эти Find не нужны.
+            if (sfxVolumeSlider == null) sfxVolumeSlider = settingsPanelUI.transform.Find("SFXSlider")?.GetComponent<Slider>(); // Пример поиска по имени дочернего объекта
+            if (resolutionDropdown == null) resolutionDropdown = settingsPanelUI.GetComponentInChildren<TMP_Dropdown>();
+
+            if (musicVolumeSlider != null) musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+            if (sfxVolumeSlider != null) sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
+            if (resolutionDropdown != null) resolutionDropdown.onValueChanged.AddListener(SetResolution);
         }
-        if (sfxVolumeSlider != null)
+        else
         {
-            sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
+            Debug.LogWarning("[SettingsManager] Панель настроек (settingsPanelUI) не назначена в инспекторе. UI настройки не будут работать.");
         }
-        if (resolutionDropdown != null)
-        {
-            resolutionDropdown.onValueChanged.AddListener(SetResolution);
-        }
+
+        SetupResolutionDropdown(); // Инициализируем дропдаун разрешения
+        LoadSettings(); // Загружаем настройки
+
+        // Убедимся, что панель настроек скрыта по умолчанию
+        if (settingsPanelUI != null) settingsPanelUI.SetActive(false);
     }
 
     private void SetupResolutionDropdown()
     {
+        if (resolutionDropdown == null) return; // Проверка на null
+
         resolutions = Screen.resolutions;
         List<string> options = new List<string>();
         int currentResolutionIndex = 0;
@@ -105,13 +109,10 @@ public class SettingsManager : MonoBehaviour
             }
         }
 
-        if (resolutionDropdown != null)
-        {
-            resolutionDropdown.ClearOptions();
-            resolutionDropdown.AddOptions(options);
-            resolutionDropdown.value = currentResolutionIndex;
-            resolutionDropdown.RefreshShownValue();
-        }
+        resolutionDropdown.ClearOptions();
+        resolutionDropdown.AddOptions(options);
+        resolutionDropdown.value = currentResolutionIndex;
+        resolutionDropdown.RefreshShownValue();
     }
 
     public void SetMusicVolume(float volume)
@@ -119,6 +120,8 @@ public class SettingsManager : MonoBehaviour
         if (mainMixer != null)
         {
             mainMixer.SetFloat(MUSIC_MIXER_PARAM, Mathf.Log10(volume) * 20);
+            PlayerPrefs.SetFloat(MUSIC_VOLUME_KEY, volume); // Сохраняем сразу при изменении
+            PlayerPrefs.Save();
         }
     }
 
@@ -127,27 +130,24 @@ public class SettingsManager : MonoBehaviour
         if (mainMixer != null)
         {
             mainMixer.SetFloat(SFX_MIXER_PARAM, Mathf.Log10(volume) * 20);
+            PlayerPrefs.SetFloat(SFX_VOLUME_KEY, volume); // Сохраняем сразу при изменении
+            PlayerPrefs.Save();
         }
     }
 
     public void SetResolution(int resolutionIndex)
     {
-        if (resolutionIndex >= 0 && resolutionIndex < resolutions.Length)
-        {
-            Resolution resolution = resolutions[resolutionIndex];
-            Screen.SetResolution(resolution.width, resolution.height, Screen.fullScreen);
-        }
-    }
+        if (resolutionDropdown == null || resolutionIndex < 0 || resolutionIndex >= resolutions.Length) return;
 
-    public void SaveSettings()
-    {
-        PlayerPrefs.SetFloat(MUSIC_VOLUME_KEY, musicVolumeSlider != null ? musicVolumeSlider.value : 1f);
-        PlayerPrefs.SetFloat(SFX_VOLUME_KEY, sfxVolumeSlider != null ? sfxVolumeSlider.value : 1f);
-        PlayerPrefs.SetInt(RESOLUTION_INDEX_KEY, resolutionDropdown != null ? resolutionDropdown.value : 0);
-
+        Resolution resolution = resolutions[resolutionIndex];
+        Screen.SetResolution(resolution.width, resolution.height, Screen.fullScreen);
+        PlayerPrefs.SetInt(RESOLUTION_INDEX_KEY, resolutionIndex); // Сохраняем сразу при изменении
         PlayerPrefs.Save();
-        Debug.Log("Настройки сохранены.");
     }
+
+    // Методы SaveSettings() и LoadSettings() теперь не нужны для UI,
+    // так как значения сохраняются сразу при изменении слайдера/дропдауна.
+    // Но LoadSettings() все еще нужна для инициализации UI при старте.
 
     void LoadSettings()
     {
@@ -155,15 +155,14 @@ public class SettingsManager : MonoBehaviour
         float sfxVolume = PlayerPrefs.HasKey(SFX_VOLUME_KEY) ? PlayerPrefs.GetFloat(SFX_VOLUME_KEY) : 1f;
         int resolutionIndex = PlayerPrefs.HasKey(RESOLUTION_INDEX_KEY) ? PlayerPrefs.GetInt(RESOLUTION_INDEX_KEY) : 0;
 
+        // Если UI элементы назначены, устанавливаем их значения
         if (musicVolumeSlider != null)
         {
             musicVolumeSlider.value = musicVolume;
-            SetMusicVolume(musicVolume);
         }
         if (sfxVolumeSlider != null)
         {
             sfxVolumeSlider.value = sfxVolume;
-            SetSFXVolume(sfxVolume);
         }
 
         if (resolutionDropdown != null)
@@ -174,12 +173,52 @@ public class SettingsManager : MonoBehaviour
             }
             else
             {
-                resolutionDropdown.value = 0;
+                resolutionDropdown.value = 0; // Сброс, если индекс недействителен
             }
             resolutionDropdown.RefreshShownValue();
-            SetResolution(resolutionDropdown.value);
+        }
+        
+        // Применяем загруженные настройки к системе (микшеры, разрешение)
+        // Эти вызовы Set...Volume/Resolution убедятся, что микшер/разрешение устанавливаются
+        // даже если UI элементы не были найдены.
+        SetMusicVolume(musicVolume); // Вызываем напрямую, чтобы применить к микшеру
+        SetSFXVolume(sfxVolume);     // Вызываем напрямую, чтобы применить к микшеру
+        if (resolutionDropdown != null)
+        {
+            SetResolution(resolutionDropdown.value); // Вызываем, чтобы применить разрешение
+        } else {
+            // Если дропдаун null, но разрешение должно быть применено
+            if (resolutions != null && resolutions.Length > resolutionIndex) {
+                 Screen.SetResolution(resolutions[resolutionIndex].width, resolutions[resolutionIndex].height, Screen.fullScreen);
+            }
         }
 
-        Debug.Log("Настройки загружены.");
+
+        Debug.Log("[SettingsManager] Настройки загружены и применены.");
+    }
+
+    // Пример методов для открытия/закрытия панели настроек (вызывается из кнопки в UI)
+    public void OpenSettingsPanel()
+    {
+        if (settingsPanelUI != null)
+        {
+            settingsPanelUI.SetActive(true);
+            // Если настройки могут меняться извне (напр. из других скриптов),
+            // можно вызывать LoadSettings() здесь для обновления UI.
+            LoadSettings(); 
+        }
+        else
+        {
+            Debug.LogWarning("[SettingsManager] Попытка открыть панель настроек, но ссылка на нее не установлена.");
+        }
+    }
+
+    public void CloseSettingsPanel()
+    {
+        if (settingsPanelUI != null)
+        {
+            // SaveSettings(); // Не нужно, так как сохраняем сразу при изменении
+            settingsPanelUI.SetActive(false);
+        }
     }
 }

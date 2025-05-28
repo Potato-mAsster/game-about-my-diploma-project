@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement; // Добавляем для подписки на событие загрузки сцены
+using UnityEngine.SceneManagement; // Необходимо для подписки на событие загрузки сцены
 using System.Collections;
 
 public class FadeScreen : MonoBehaviour
@@ -15,18 +15,26 @@ public class FadeScreen : MonoBehaviour
 
     void Awake()
     {
+        // Теперь, если FadeScreen не DontDestroyOnLoad,
+        // он будет уничтожаться при смене сцен.
+        // Если вы хотите, чтобы он был синглтоном только для одной сцены,
+        // то эта логика будет работать.
         if (instance == null)
         {
             instance = this;
-            // Сделать объект FadeScreen persistent между сценами
-            DontDestroyOnLoad(gameObject.transform.root.gameObject);
+            // DontDestroyOnLoad(gameObject.transform.root.gameObject); // ЭТА СТРОКА УДАЛЕНА
         }
         else if (instance != this)
         {
+            // Если есть другой экземпляр (например, из предыдущей сцены,
+            // которая почему-то не была уничтожена, или если два FadeScreen в одной сцене),
+            // уничтожаем этот.
             Destroy(gameObject);
         }
 
-        // Подписываемся на событие загрузки новой сцены, чтобы запустить FadeIn
+        // Подписываемся на событие загрузки новой сцены, чтобы запустить FadeIn.
+        // ЭТО ВАЖНО: Если FadeScreen не DontDestroyOnLoad, то он должен
+        // присутствовать в каждой сцене, которую вы хотите "появлять".
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -34,6 +42,12 @@ public class FadeScreen : MonoBehaviour
     {
         // Отписываемся от события, чтобы избежать утечек памяти
         SceneManager.sceneLoaded -= OnSceneLoaded;
+
+        // Если этот экземпляр был "instance", и он уничтожается, сбросьте instance.
+        if (instance == this)
+        {
+            instance = null;
+        }
     }
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -47,6 +61,8 @@ public class FadeScreen : MonoBehaviour
     {
         if (isFading) return;
         isFading = true;
+        // Убедитесь, что fadeImage активен, прежде чем начинать затухание
+        if (fadeImage != null) fadeImage.gameObject.SetActive(true);
         targetColor = new Color(0f, 0f, 0f, 1f); // Полностью черный, полностью непрозрачный
         StartCoroutine(Fade(targetColor, () =>
         {
@@ -60,11 +76,15 @@ public class FadeScreen : MonoBehaviour
     {
         if (isFading) return;
         isFading = true;
+        // Убедитесь, что fadeImage активен, прежде чем начинать появление
+        if (fadeImage != null) fadeImage.gameObject.SetActive(true);
         targetColor = new Color(0f, 0f, 0f, 0f); // Полностью черный, полностью прозрачный
         StartCoroutine(Fade(targetColor, () =>
         {
             onFadeComplete?.Invoke();
             isFading = false;
+            // Скрываем изображение после завершения появления
+            if (fadeImage != null) fadeImage.gameObject.SetActive(false);
         }));
     }
 
