@@ -2,16 +2,18 @@ using UnityEngine;
 using UnityEngine.UI; // Для работы с UI элементами (Button, InputField, Text)
 using UnityEngine.SceneManagement; // Для загрузки сцен
 using System.Collections; // Для корутин
-using System.Collections.Generic; // Для List (обязательно!)
-// Если используете TextMeshPro, добавьте:
-// using TMPro;
+using System.Collections.Generic;
+using TMPro;
 
 public class MainMenuController : MonoBehaviour
 {
     [Header("UI Panels")]
     public GameObject mainMenuPanel;    // Главная панель меню (Загрузить, Начать, Настройки, Выход)
     public GameObject newGamePanel;     // Паненель для ввода имени нового игрока
-    public GameObject loadGamePanel;    // НОВАЯ ПАНЕЛЬ: Панель для загрузки игры <-- ДОБАВЛЕНО
+    public GameObject loadGamePanel;    // НОВАЯ ПАНЕЛЬ: Панель для загрузки игры
+    public GameObject infoPanel;       // Панель "Об авторе" / Инфо-панель <-- ДОБАВЛЕНО
+    public GameObject settingsPanel;   // Панель настроек <-- ДОБАВЛЕНО
+
 
     [Header("Main Menu Buttons")]
     public Button loadGameButton;       // Кнопка "ЗАГРУЗИТЬ"
@@ -21,10 +23,10 @@ public class MainMenuController : MonoBehaviour
     public Button exitButton;           // Кнопка "ВЫХОД"
 
     [Header("New Game UI Elements")]
-    public InputField playerNameInput;  // Поле для ввода имени игрока
+    public TMP_InputField playerNameInput;  // Поле для ввода имени игрока
     public Button confirmNewGameButton; // Кнопка "Подтвердить" на панели новой игры
     public Button backFromNewGameButton; // Кнопка "Назад" на панели новой игры
-    public Text errorMessageText;       // Текст для отображения ошибок (например, "Введите имя!")
+    public TMP_Text errorMessageText;       // Текст для отображения ошибок (например, "Введите имя!")
 
     // НОВЫЙ РАЗДЕЛ: Элементы UI для панели загрузки игры
     [Header("Load Game UI Elements")] 
@@ -40,43 +42,58 @@ public class MainMenuController : MonoBehaviour
 
     void Awake()
     {
-        // Проверяем все существующие привязки + новые для загрузки игры
-        if (mainMenuPanel == null || newGamePanel == null ||
+        // Проверяем все существующие привязки + новые для загрузки игры и новых панелей
+        if (mainMenuPanel == null || newGamePanel == null || loadGamePanel == null || 
             loadGameButton == null || startGameButton == null || settingsButton == null || aboutButton == null || exitButton == null ||
             playerNameInput == null || confirmNewGameButton == null || backFromNewGameButton == null || errorMessageText == null ||
-            loadGamePanel == null || playerListContentParent == null || playerListItemPrefab == null || backFromLoadGameButton == null) // <-- ДОБАВЛЕНО
+            playerListContentParent == null || playerListItemPrefab == null || backFromLoadGameButton == null ||
+            infoPanel == null || settingsPanel == null) // <-- ДОБАВЛЕНО: Проверка новых панелей
         {
             Debug.LogError("MainMenuController: Некоторые UI-элементы не привязаны в Инспекторе! Проверьте все поля.");
+            // Отключаем скрипт, чтобы избежать дальнейших ошибок, если что-то не привязано
+            this.enabled = false; 
             return;
         }
 
         dbManager = DatabaseManager.Instance; // Получаем синглтон DatabaseManager
+        if (dbManager == null) // Дополнительная проверка на всякий случай
+        {
+            Debug.LogError("MainMenuController: DatabaseManager не найден! Убедитесь, что он инициализирован.");
+            this.enabled = false;
+            return;
+        }
 
-        // Устанавливаем начальное состояние панелей
+        // При старте MainMenu, убедимся, что курсор виден
+        Cursor.lockState = CursorLockMode.None; // Разблокировать курсор
+        Cursor.visible = true; // Сделать курсор видимым
+        Debug.Log("[MainMenuController] Курсор разблокирован и виден.");
+
+        // Устанавливаем начальное состояние панелей: главное меню активно, остальные скрыты
         mainMenuPanel.SetActive(true);
         newGamePanel.SetActive(false);
-        loadGamePanel.SetActive(false); // НОВАЯ СТРОКА: скрываем панель загрузки <-- ДОБАВЛЕНО
+        loadGamePanel.SetActive(false);
         errorMessageText.gameObject.SetActive(false);
-        // if (noSavedGamesMessageText != null) noSavedGamesMessageText.gameObject.SetActive(false); // Если опциональный текст
+        infoPanel.SetActive(false); // НОВАЯ СТРОКА: скрываем инфо-панель <-- ДОБАВЛЕНО
+        settingsPanel.SetActive(false); // НОВАЯ СТРОКА: скрываем панель настроек <-- ДОБАВЛЕНО
 
         AddButtonListeners();
     }
 
     private void AddButtonListeners()
     {
-        // Кнопки главного меню (существующие)
-        loadGameButton.onClick.AddListener(OnLoadGameClicked); 
+        // Кнопки главного меню
+        loadGameButton.onClick.AddListener(OnLoadGameClicked);
         startGameButton.onClick.AddListener(OnStartGameClicked);
-        settingsButton.onClick.AddListener(OnSettingsClicked);
-        aboutButton.onClick.AddListener(OnAboutClicked);
+        settingsButton.onClick.AddListener(OnSettingsClicked); // Эта кнопка теперь будет вызывать ToggleSettingsPanel()
+        aboutButton.onClick.AddListener(OnAboutClicked);       // Эта кнопка теперь будет вызывать ToggleInfoPanel()
         exitButton.onClick.AddListener(OnExitClicked);
 
-        // Кнопки панели "Новая игра" (существующие)
+        // Кнопки панели "Новая игра"
         confirmNewGameButton.onClick.AddListener(OnConfirmNewGameClicked);
         backFromNewGameButton.onClick.AddListener(OnBackFromNewGameClicked);
 
-        // НОВЫЙ СЛУШАТЕЛЬ: Кнопка "Назад" на панели загрузки игры
-        backFromLoadGameButton.onClick.AddListener(OnBackFromLoadGameClicked); // <-- ДОБАВЛЕНО
+        // Кнопка "Назад" на панели загрузки игры
+        backFromLoadGameButton.onClick.AddListener(OnBackFromLoadGameClicked); 
     }
 
     // --- ОБРАБОТЧИКИ КНОПОК ГЛАВНОГО МЕНЮ ---
@@ -99,16 +116,20 @@ public class MainMenuController : MonoBehaviour
         errorMessageText.gameObject.SetActive(false); // Скрываем старые ошибки
     }
 
-    public void OnSettingsClicked()
+    public void OnSettingsClicked() // <-- ИЗМЕНЕНО: теперь вызывает ToggleSettingsPanel
     {
-        Debug.Log("Кнопка 'НАСТРОЙКИ' нажата (заглушка).");
-        // TODO: Реализовать логику настроек.
+        Debug.Log("Кнопка 'НАСТРОЙКИ' нажата.");
+        ToggleSettingsPanel(true); // Показываем панель настроек
+        // Можно скрыть главное меню, если панель настроек не накладывается сверху
+        // mainMenuPanel.SetActive(false); 
     }
 
-    public void OnAboutClicked()
+    public void OnAboutClicked() // <-- ИЗМЕНЕНО: теперь вызывает ToggleInfoPanel
     {
-        Debug.Log("Кнопка 'ОБ АВТОРЕ' нажата (заглушка).");
-        // TODO: Реализовать логику "Об авторе".
+        Debug.Log("Кнопка 'ОБ АВТОРЕ' нажата.");
+        ToggleInfoPanel(true); // Показываем инфо-панель
+        // Можно скрыть главное меню, если инфо-панель не накладывается сверху
+        // mainMenuPanel.SetActive(false); 
     }
 
     public void OnExitClicked()
@@ -257,56 +278,82 @@ public class MainMenuController : MonoBehaviour
 
         List<DatabaseManager.PlayerData> players = dbManager.GetAllPlayers();
         
+        Debug.Log($"MainMenuController: PopulatePlayerList вызван. Получено игроков: {players.Count}"); // Проверка: сколько игроков найдено
 
         if (players != null && players.Count > 0)
         {
             foreach (var player in players)
             {
-                Debug.Log(player);
-                // Создаем экземпляр префаба как дочерний элемент playerListContentParent
+                Debug.Log($"MainMenuController: Создаем элемент для игрока '{player.playerName}'."); // Проверка: для какого игрока
+                
+                // Создаем экземпляр префаба
                 GameObject item = Instantiate(playerListItemPrefab, playerListContentParent);
 
-                // ***ВАЖНО: КАК НАЙТИ КОМПОНЕНТЫ ВНУТРИ ПРЕФАБА***
-                // Если Text и Button НАХОДЯТСЯ ПРЯМО НА КОРНЕВОМ PlayerListItem (т.е., они не вложены глубоко):
-                Text playerNameText = item.GetComponent<Text>(); // Если обычный UI.Text
-                                                                 // Или: TextMeshProUGUI playerNameText = item.GetComponent<TextMeshProUGUI>(); // Если TextMeshPro
-
-                Button selectPlayerButton = item.GetComponent<Button>();
-
-                // Если Text и/или Button ЯВЛЯЮТСЯ ДОЧЕРНИМИ ОБЪЕКТАМИ PlayerListItem:
-                // Например, если PlayerNameText - это дочерний элемент PlayerListItem
-                // Text playerNameText = item.GetComponentInChildren<Text>(); 
-                // Button selectPlayerButton = item.GetComponentInChildren<Button>(); 
-
+                // *** ЭТО САМЫЙ КРИТИЧНЫЙ БЛОК: ПОИСК КОМПОНЕНТОВ ВНУТРИ СОЗДАННОГО ЭЛЕМЕНТА ***
+                // Поскольку PlayerNameText и SelectPlayerButton являются ДОЧЕРНИМИ элементами PlayerListItem
+                // И мы используем TextMeshPro
+                
+                TextMeshProUGUI playerNameText = item.GetComponentInChildren<TextMeshProUGUI>(); 
+                Button selectPlayerButton = item.GetComponentInChildren<Button>(); 
 
                 if (playerNameText != null)
                 {
                     playerNameText.text = player.playerName;
+                    Debug.Log($"MainMenuController: Имя '{player.playerName}' назначено TextMeshPro компоненту.");
                 }
                 else
                 {
-                    // Это предупреждение сработает, если скрипт не найдет Text.
-                    Debug.LogWarning("Player list item prefab is missing a Text component on its root or children!");
+                    // Это предупреждение вылезет, если скрипт не найдет TextMeshProUGUI компонент внутри префаба
+                    Debug.LogWarning($"MainMenuController: Player list item prefab for '{player.playerName}' is missing a TextMeshProUGUI component in its children!");
                 }
 
                 if (selectPlayerButton != null)
                 {
-                    // Важно: захватываем player.id для лямбда-выражения (это корректно)
-                    int playerIdToLoad = player.id;
+                    int playerIdToLoad = player.id; 
                     selectPlayerButton.onClick.AddListener(() => OnSelectPlayerClicked(playerIdToLoad));
+                    Debug.Log($"MainMenuController: Кнопка для игрока '{player.playerName}' привязана.");
                 }
                 else
                 {
-                    // Это предупреждение сработает, если скрипт не найдет Button.
-                    Debug.LogWarning("Player list item prefab is missing a Button component on its root or children!");
+                    // Это предупреждение вылезет, если скрипт не найдет Button компонент внутри префаба
+                    Debug.LogWarning($"MainMenuController: Player list item prefab for '{player.playerName}' is missing a Button component in its children!");
                 }
             }
         }
         else
         {
-            Debug.Log("Нет сохраненных игроков для загрузки.");
+            Debug.Log("Нет сохраненных игроков для загрузки (после DatabaseManager.GetAllPlayers()).");
             // (Опционально: показать сообщение "Нет сохраненных игр")
         }
+    }
+
+    // НОВЫЕ МЕТОДЫ: Управление видимостью панелей "Об авторе" и "Настройки" <-- ДОБАВЛЕНО
+    public void ToggleInfoPanel(bool show) // Параметр show для явного показа/скрытия
+    {
+        // Убедимся, что другие панели меню скрыты, если эта панель накладывается сверху
+        //mainMenuPanel.SetActive(!show); // Скрыть главное меню, если показываем инфо-панель
+        loadGamePanel.SetActive(false);
+        newGamePanel.SetActive(false);
+        settingsPanel.SetActive(false); // Убедимся, что панель настроек скрыта
+        errorMessageText.gameObject.SetActive(false);
+
+
+        infoPanel.SetActive(show); // Устанавливаем активность инфо-панели
+        Debug.Log($"Info Panel {(show ? "показана" : "скрыта")}.");
+    }
+
+    public void ToggleSettingsPanel(bool show) // Параметр show для явного показа/скрытия
+    {
+        // Убедимся, что другие панели меню скрыты, если эта панель накладывается сверху
+        //mainMenuPanel.SetActive(!show); // Скрыть главное меню, если показываем панель настроек
+        loadGamePanel.SetActive(false);
+        newGamePanel.SetActive(false);
+        infoPanel.SetActive(false); // Убедимся, что инфо-панель скрыта
+        errorMessageText.gameObject.SetActive(false);
+
+
+        settingsPanel.SetActive(show); // Устанавливаем активность панели настроек
+        Debug.Log($"Settings Panel {(show ? "показана" : "скрыта")}.");
     }
 
     private void ClearPlayerList() // <-- ДОБАВЛЕНО

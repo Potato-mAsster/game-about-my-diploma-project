@@ -3044,6 +3044,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nextLevelName: MainMenu
   animationStateName: FadeOut
+  playerNameDisplay: {fileID: 0}
 --- !u!1 &973175511
 GameObject:
   m_ObjectHideFlags: 0
@@ -4368,7 +4369,7 @@ GameObject:
   - component: {fileID: 1767735076}
   - component: {fileID: 1767735075}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: BuyPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4837,6 +4838,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nextLevelName: MainMenu
   animationStateName: openingPlayer
+  playerNameDisplay: {fileID: 1767735076}
 --- !u!95 &1833232269
 Animator:
   serializedVersion: 5

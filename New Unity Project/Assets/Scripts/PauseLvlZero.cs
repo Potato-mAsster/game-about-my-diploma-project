@@ -117,12 +117,10 @@ public class PauseLvlZero : MonoBehaviour
 
     public void QuitGame()
     {
-        Time.timeScale = 1f; // Убеждаемся, что время нормальное перед выходом
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false; // Только для редактора
-#else
-        Application.Quit(); // Для билда
-#endif
+        Time.timeScale = 1f;
+
+        LoadingScreenManager.sceneToLoad = "MainMenu";
+        SceneManager.LoadScene("LoadingScreen");
     }
 
     public void OpenSettings()

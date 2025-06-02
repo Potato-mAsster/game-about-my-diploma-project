@@ -1,69 +1,126 @@
 using UnityEngine;
-using UnityEngine.SceneManagement; // Необходимо для работы со сценами
+using UnityEngine.SceneManagement;
+using TMPro; // Добавляем для работы с TextMeshProUGUI
 
 public class SceneChangerOnAnimationEnd : MonoBehaviour
 {
     // Имя сцены, на которую нужно перейти ПОСЛЕ экрана загрузки
     [Tooltip("Имя целевой сцены, на которую нужно перейти ПОСЛЕ загрузочного экрана.")]
-    public string nextLevelName; 
+    public string nextLevelName = "MainMenu";
 
     // Название состояния анимации, которое должно завершиться
-    // Это должно быть точное имя состояния в вашем Animator Controller
     [Tooltip("Точное имя состояния анимации в Animator Controller, после завершения которого произойдет переход.")]
     public string animationStateName; 
 
+    // НОВОЕ ПОЛЕ: Ссылка на TextMeshProUGUI для отображения имени игрока
+    [Header("UI для имени игрока")] // <-- НОВОЕ
+    [Tooltip("Перетащите сюда текстовый компонент (TextMeshProUGUI) на сцене для отображения имени игрока.")] // <-- НОВОЕ
+    public TextMeshProUGUI playerNameDisplay; // <-- НОВОЕ
+
     private Animator animator;
-    private bool animationFinished = false; // Флаг для отслеживания завершения и предотвращения повторных загрузок
+    private bool animationFinished = false; 
+
+    // НОВОЕ: Ссылка на DatabaseManager
+    private DatabaseManager dbManager; // <-- НОВОЕ
 
     void Start()
     {
-        animator = GetComponent<Animator>(); // Получаем компонент Animator
+        animator = GetComponent<Animator>(); 
         if (animator == null)
         {
-            Debug.LogError("[SceneChangerOnAnimationEnd] Animator компонент не найден на этом объекте. " +
-                           "Скрипт требует Animator. Отключаю скрипт.");
-            enabled = false; // Отключаем скрипт, если Animator не найден
+            Debug.LogError("[SceneChangerOnAnimationEnd] Animator компонент не найден на этом объекте. Скрипт требует Animator. Отключаю скрипт.");
+            enabled = false; 
             return;
         }
 
-        // Убедитесь, что курсор скрыт и заблокирован, если это не главное меню
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // НОВОЕ: Получаем ссылку на DatabaseManager
+        dbManager = DatabaseManager.Instance; // <-- НОВОЕ
+        if (dbManager == null)
+        {
+            Debug.LogError("[SceneChangerOnAnimationEnd] DatabaseManager не найден! Невозможно отобразить имя игрока."); // <-- НОВОЕ
+            // enabled = false; // Не отключаем полностью, вдруг анимация сама по себе нужна
+        }
+        else // Если DatabaseManager найден
+        {
+            // НОВОЕ: Обновляем текстовое поле именем игрока
+            UpdatePlayerNameDisplay(); // <-- НОВЫЙ МЕТОД
+        }
+
+
+        // Убедитесь, что курсор виден (для UI сцен)
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Debug.Log("[SceneChangerOnAnimationEnd] Курсор разблокирован и виден."); // <-- Изменил лог
+
         // Гарантируем, что время игры нормальное
         Time.timeScale = 1f;
+    }
+
+    // НОВЫЙ МЕТОД: Обновление текстового поля именем игрока
+    void UpdatePlayerNameDisplay() // <-- НОВЫЙ МЕТОД
+    {
+        if (playerNameDisplay == null)
+        {
+            Debug.LogWarning("[SceneChangerOnAnimationEnd] Поле 'Player Name Display' (TextMeshProUGUI) не привязано в Инспекторе.");
+            return;
+        }
+
+        if (dbManager != null && dbManager.CurrentPlayerId != -1)
+        {
+            // Получаем данные игрока по его ID
+            DatabaseManager.PlayerData playerData = dbManager.GetPlayerById(dbManager.CurrentPlayerId); // Используем уже существующий GetPlayerById
+            if (playerData != null)
+            {
+                playerNameDisplay.text = playerData.playerName + ",\nВы собрали все листы. \nДипломная работа готова!"; // Устанавливаем текст
+                Debug.Log($"[SceneChangerOnAnimationEnd] Отображено имя игрока: {playerData.playerName}");
+            }
+            else
+            {
+                playerNameDisplay.text = "Игрок не найден";
+                Debug.LogWarning("[SceneChangerOnAnimationEnd] Данные текущего игрока не найдены в БД.");
+            }
+        }
+        else
+        {
+            playerNameDisplay.text = "Игрок не выбран";
+            Debug.LogWarning("[SceneChangerOnAnimationEnd] DatabaseManager не готов или игрок не выбран (CurrentPlayerId == -1).");
+        }
     }
 
     void Update()
     {
         if (animator == null || animationFinished)
         {
-            return; // Выходим, если Animator не найден или анимация уже завершилась
+            return; 
         }
 
-        // Получаем информацию о текущем состоянии Animator-а
-        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0); // 0 - это слой Animator-а
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0); 
 
-        // Проверяем, находится ли Animator в указанном состоянии и завершила ли анимация воспроизведение
-        // stateInfo.IsName(animationStateName) проверяет, активно ли это состояние
-        // stateInfo.normalizedTime >= 1.0f означает, что анимация воспроизвелась хотя бы один раз полностью
         if (stateInfo.IsName(animationStateName) && stateInfo.normalizedTime >= 1.0f)
         {
             Debug.Log($"[SceneChangerOnAnimationEnd] Анимация '{animationStateName}' завершилась. Подготовка к загрузке сцены: {nextLevelName}");
-            animationFinished = true; // Устанавливаем флаг, чтобы не загружать сцену повторно
+            animationFinished = true; 
 
-            // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ LOADINGSCREENMANAGER ---
             if (string.IsNullOrEmpty(nextLevelName))
             {
                 Debug.LogError("[SceneChangerOnAnimationEnd] Имя следующей сцены не указано! Невозможно загрузить.");
                 return;
             }
 
-            // 1. Устанавливаем целевую сцену для LoadingScreenManager
-            LoadingScreenManager.sceneToLoad = nextLevelName; 
-
-            // 2. Загружаем сцену LoadingScreen
-            // Убедитесь, что имя "LoadingScreen" точно совпадает с именем вашей сцены загрузки в Build Settings.
-            SceneManager.LoadScene("LoadingScreen"); 
+            LoadingScreenManager.sceneToLoad = nextLevelName;
+            // Cursor.visible = true; // Это уже делается в Start() и LoadMainMenu()
+            SceneManager.LoadScene("LoadingScreen");
+            
         }
+    }
+
+    void LoadMainMenu()
+    {
+        // Cursor.lockState = CursorLockMode.None; // Это уже делается в Start()
+        // Cursor.visible = true; // Это уже делается в Start()
+        Debug.Log("[SceneChangerOnAnimationEnd] Курсор разблокирован перед загрузкой LoadingScreen.");
+
+        LoadingScreenManager.sceneToLoad = nextLevelName;
+        SceneManager.LoadScene("LoadingScreen");
     }
 }

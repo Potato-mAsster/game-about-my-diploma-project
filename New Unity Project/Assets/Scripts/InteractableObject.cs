@@ -1,7 +1,8 @@
-using UnityEngine; // ОБЯЗАТЕЛЬНО
-using UnityEngine.UI; // ОБЯЗАТЕЛЬНО, если используете стандартный UnityEngine.UI.Text (хотя у вас TMPro)
-using UnityEngine.SceneManagement; // ОБЯЗАТЕЛЬНО
-using TMPro; // ОБЯЗАТЕЛЬНО
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using TMPro; 
+using System.Collections; // Для корутин, если используются (для FadeScreen.instance.FadeOut)
 
 public class InteractableObject : MonoBehaviour
 {
@@ -10,8 +11,8 @@ public class InteractableObject : MonoBehaviour
     public string interactionText = "Спать"; 
     [Tooltip("Максимальная дистанция, на которой игрок может взаимодействовать с этим объектом.")]
     public float interactionDistance = 2f; 
-    [Tooltip("Название сцены, которая будет загружена после успешного взаимодействия.")]
-    public string nextSceneName = "Level1"; 
+    // Убираем nextSceneName, так как его будет определять БД!
+    // public string nextSceneName = "Level1"; 
     
     [Header("Настройки Анимации Игрока")]
     [Tooltip("Название булевого параметра триггера анимации сна игрока (например, 'IsSleeping').")]
@@ -30,8 +31,25 @@ public class InteractableObject : MonoBehaviour
     private bool canInteract = false; 
     private bool isInteracting = false; 
 
+    // Ссылка на DatabaseManager
+    private DatabaseManager dbManager; // <-- ДОБАВЛЕНО
+
     void Start()
     {
+        dbManager = DatabaseManager.Instance; // <-- ДОБАВЛЕНО
+        if (dbManager == null)
+        {
+            Debug.LogError("[InteractableObject] DatabaseManager не найден! Убедитесь, что он инициализирован на стартовой сцене и DontDestroyOnLoad работает.");
+            enabled = false; 
+            return;
+        }
+        if (dbManager.CurrentPlayerId == -1) // <-- ДОБАВЛЕНО
+        {
+            Debug.LogError("[InteractableObject] Текущий игрок не определен в DatabaseManager. Невозможно сохранить прогресс.");
+            enabled = false;
+            return;
+        }
+
         player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
@@ -65,7 +83,8 @@ public class InteractableObject : MonoBehaviour
     void Update()
     {
         if (isInteracting) return;
-
+        if (player == null) return; // Доп. проверка на случай, если игрок уничтожен
+        
         float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
 
         if (distanceToPlayer <= interactionDistance)
@@ -125,30 +144,86 @@ public class InteractableObject : MonoBehaviour
                     playerAnimator.SetBool(animationSleepBool, false); 
                 }
 
-                LoadNextScene();
+                ProcessLevelCompletionAndLoadNext(); // <-- ИЗМЕНЕНО: Новая функция
             });
         }
         else
         {
-            Debug.LogError("[InteractableObject] Не найден экземпляр FadeScreen! Загружаем сцену напрямую.");
-            LoadNextScene();
+            Debug.LogError("[InteractableObject] Не найден экземпляр FadeScreen! Обрабатываем завершение уровня напрямую.");
+            ProcessLevelCompletionAndLoadNext(); // <-- ИЗМЕНЕНО: Новая функция
         }
     }
 
-    void LoadNextScene()
+    // НОВЫЙ МЕТОД: Обработка завершения уровня и загрузка следующего
+    void ProcessLevelCompletionAndLoadNext() 
     {
-        Debug.Log("[InteractableObject] Загружаем сцену через экран загрузки: " + nextSceneName);
-        Time.timeScale = 1f; 
+        Time.timeScale = 1f;
 
-        // Устанавливаем целевую сцену для LoadingScreenManager
-        LoadingScreenManager.sceneToLoad = nextSceneName; 
-        // Загружаем сцену LoadingScreen
-        SceneManager.LoadScene("LoadingScreen"); 
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        DatabaseManager.LevelData currentLevelData = dbManager.GetLevelDataBySceneName(currentSceneName); 
+
+        if (currentLevelData == null)
+        {
+            Debug.LogError($"[InteractableObject] Информация о текущем уровне '{currentSceneName}' не найдена в БД. Возврат в главное меню.");
+            LoadingScreenManager.sceneToLoad = "MainMenu"; 
+            SceneManager.LoadScene("LoadingScreen");
+            return;
+        }
+
+        Debug.Log($"Текущий уровень (из БД): ID={currentLevelData.id}, Name={currentLevelData.levelName}, Order={currentLevelData.order}");
+
+        // --- ПОЛУЧАЕМ ЗАТРАЧЕННОЕ ВРЕМЯ ИЗ GameTimer ---
+        float levelCompletionTime = -1f; 
+        if (GameTimer.Instance != null)
+        {
+            levelCompletionTime = GameTimer.Instance.CurrentLevelElapsedTime; 
+            GameTimer.Instance.StopLevelTimer(); 
+            Debug.Log($"[InteractableObject] Время прохождения уровня получено из GameTimer: {levelCompletionTime} секунд.");
+        }
+        else
+        {
+            Debug.LogWarning("[InteractableObject] GameTimer не найден. Время прохождения уровня не будет записано.");
+        }
+
+        // --- ПОЛУЧАЕМ КОЛИЧЕСТВО СОБРАННЫХ ЛИСТЬЕВ ИЗ LeafCollector ---
+        int currentScore = LeafCollector.leafCount; // <-- ИЗМЕНЕНО: ИСПОЛЬЗУЕМ leafCount
+        Debug.Log($"[InteractableObject] Очки (собранные листья) на уровне: {currentScore}.");
+
+
+        // 2. Сохраняем прогресс для ТЕКУЩЕГО уровня: помечаем его как завершенный и обновляем статистику
+        dbManager.SetLevelCompleted(dbManager.CurrentPlayerId, currentLevelData.id, true, levelCompletionTime, currentScore); 
+        // dbManager.IncrementLevelAttempts() вызывается в GameTimer.Awake
+
+        // ... (остальная логика для нахождения следующего уровня и перехода) ...
+        DatabaseManager.LevelData nextLevelData = dbManager.GetLevelDataByOrder(currentLevelData.order + 1);
+
+        if (nextLevelData != null)
+        {
+            dbManager.SetLevelUnlocked(dbManager.CurrentPlayerId, nextLevelData.id, true);
+
+            LeafCollector.leafCount = 0; 
+            Debug.Log("Счетчик листьев сброшен до: " + LeafCollector.leafCount + " перед загрузкой новой сцены.");
+            
+            LoadingScreenManager.sceneToLoad = nextLevelData.sceneName; 
+            Debug.Log($"Переход на сцену: {nextLevelData.sceneName} через LoadingScreen.");
+            SceneManager.LoadScene("LoadingScreen");
+        }
+        else
+        {
+            Debug.Log("Это последний уровень в последовательности из БД. Игра завершена или возврат в меню.");
+            LoadingScreenManager.sceneToLoad = "MainMenu"; 
+            Debug.Log("Возврат в главное меню через LoadingScreen.");
+            SceneManager.LoadScene("LoadingScreen");
+        }
+        isInteracting = false;
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, interactionDistance);
+        if (transform.position != null && player != null) // Доп. проверка, чтобы избежать ошибок в редакторе
+        {
+             Gizmos.DrawWireSphere(transform.position, interactionDistance);
+        }
     }
 }

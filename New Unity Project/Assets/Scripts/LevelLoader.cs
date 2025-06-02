@@ -3,53 +3,87 @@ using UnityEngine.SceneManagement;
 
 public class LevelLoader : MonoBehaviour
 {
+    private DatabaseManager dbManager;
+
+    void Start()
+    {
+        dbManager = DatabaseManager.Instance;
+        if (dbManager == null)
+        {
+            Debug.LogError("[LevelLoader] DatabaseManager не найден! Отключаем скрипт.");
+            this.enabled = false;
+        }
+    }
+
     private void OnTriggerEnter(Collider other)
     {
+        if (dbManager == null || dbManager.CurrentPlayerId == -1)
+        {
+            Debug.LogWarning("[LevelLoader] Текущий игрок не определен или DatabaseManager не инициализирован. Прогресс не будет сохранен.");
+            return;
+        }
+
         if (other.CompareTag("Player"))
         {
-            Debug.Log("Переход на следующий уровень...");
+            Debug.Log("Игрок вошел в триггер перехода на следующий уровень.");
 
-            int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
-            Debug.Log("Следующая сцена по индексу: " + nextSceneIndex);
+            string currentSceneName = SceneManager.GetActiveScene().name;
+            DatabaseManager.LevelData currentLevelData = dbManager.GetLevelDataBySceneName(currentSceneName);
 
-            // Проверяем, что следующая сцена существует в настройках сборки
-            if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
+            if (currentLevelData == null)
             {
-                // *** ВОТ ЧТО МЫ ДОБАВЛЯЕМ/МЕНЯЕМ ***
+                Debug.LogError($"[LevelLoader] Информация о текущем уровне '{currentSceneName}' не найдена в БД. Возврат в главное меню.");
+                LoadingScreenManager.sceneToLoad = "MainMenu";
+                SceneManager.LoadScene("LoadingScreen");
+                return;
+            }
 
-                // 1. Сбрасываем счетчик листьев ПЕРЕД загрузкой следующей сцены
-                LeafCollector.leafCount = 0;
-                Debug.Log("Счетчик листьев сброшен до: " + LeafCollector.leafCount + " перед загрузкой новой сцены.");
+            Debug.Log($"Текущий уровень (из БД): ID={currentLevelData.id}, Name={currentLevelData.levelName}, Order={currentLevelData.order}");
 
-                // 2. Устанавливаем целевую сцену для LoadingScreenManager
-                // SceneUtility.GetScenePathByBuildIndex(nextSceneIndex) вернет полный путь к сцене,
-                // из которого нам нужно извлечь только имя. Это надежнее, чем использовать nextSceneIndex напрямую,
-                // если LoadingScreenManager.sceneToLoad ожидает имя сцены.
-                
-                string nextSceneName = System.IO.Path.GetFileNameWithoutExtension(SceneUtility.GetScenePathByBuildIndex(nextSceneIndex));
-
-                if (string.IsNullOrEmpty(nextSceneName))
-                {
-                    Debug.LogError($"[LevelLoader] Не удалось получить имя сцены для индекса {nextSceneIndex}. Проверьте Build Settings.");
-                    return; // Прерываем операцию, если имя сцены не получено
-                }
-
-                // Устанавливаем целевую сцену в статической переменной LoadingScreenManager
-                LoadingScreenManager.sceneToLoad = nextSceneName; 
-                
-                // 3. Загружаем сцену LoadingScreen
-                // Убедитесь, что "LoadingScreen" добавлена в Build Settings и ее имя точно совпадает.
-                SceneManager.LoadScene("LoadingScreen"); 
+            // --- ПОЛУЧАЕМ ЗАТРАЧЕННОЕ ВРЕМЯ ИЗ GameTimer ---
+            float levelCompletionTime = -1f; // Инициализация значением по умолчанию
+            if (GameTimer.Instance != null)
+            {
+                levelCompletionTime = GameTimer.Instance.CurrentLevelElapsedTime; 
+                GameTimer.Instance.StopLevelTimer(); 
+                Debug.Log($"[LevelLoader] Время прохождения уровня получено из GameTimer: {levelCompletionTime} секунд.");
             }
             else
             {
-                Debug.Log("Это последний уровень в настройках сборки. Возврат к началу или переход к экрану победы.");
-                // Опционально: можно загрузить первую сцену (например, главное меню) через экран загрузки.
-                // LoadingScreenManager.sceneToLoad = "MainMenu"; // Замените на имя вашей первой сцены
-                // SceneManager.LoadScene("LoadingScreen");
+                Debug.LogWarning("[LevelLoader] GameTimer не найден. Время прохождения уровня не будет записано.");
+            }
+
+            // --- ПОЛУЧАЕМ КОЛИЧЕСТВО СОБРАННЫХ ЛИСТЬЕВ ИЗ LeafCollector ---
+            int currentScore = LeafCollector.leafCount; // <-- ИЗМЕНЕНО: ИСПОЛЬЗУЕМ leafCount
+            Debug.Log($"[LevelLoader] Очки (собранные листья) на уровне: {currentScore}.");
+
+
+            // 2. Сохраняем прогресс для ТЕКУЩЕГО уровня: помечаем его как завершенный и обновляем статистику
+            dbManager.SetLevelCompleted(dbManager.CurrentPlayerId, currentLevelData.id, true, levelCompletionTime, currentScore); 
+            // dbManager.IncrementLevelAttempts() вызывается в GameTimer.Awake
+
+            // 3. Находим СЛЕДУЮЩИЙ уровень в БД (по порядку)
+            DatabaseManager.LevelData nextLevelData = dbManager.GetLevelDataByOrder(currentLevelData.order + 1);
+
+            if (nextLevelData != null)
+            {
+                Debug.Log($"Найден следующий уровень в БД: ID={nextLevelData.id}, Name={nextLevelData.levelName}, Order={nextLevelData.order}");
+
+                // 4. Разблокируем СЛЕДУЮЩИЙ уровень для текущего игрока
+                dbManager.SetLevelUnlocked(dbManager.CurrentPlayerId, nextLevelData.id, true);
+
+                LeafCollector.leafCount = 0; // Сброс листьев для следующего уровня (это уже было)
+                Debug.Log("Счетчик листьев сброшен до: " + LeafCollector.leafCount + " перед загрузкой новой сцены.");
                 
-                // Если это конец игры, можно загрузить сцену "GameComplete" или "Credits"
-                LoadingScreenManager.sceneToLoad = "MainMenu"; // Пример: возвращаемся в MainMenu
+                LoadingScreenManager.sceneToLoad = nextLevelData.sceneName; 
+                Debug.Log($"Переход на сцену: {nextLevelData.sceneName} через LoadingScreen.");
+                SceneManager.LoadScene("LoadingScreen");
+            }
+            else
+            {
+                // Если следующего уровня в БД нет, загружаем EndingScene
+                Debug.Log("Это последний уровень в последовательности из БД. Переход к EndingScene.");
+                LoadingScreenManager.sceneToLoad = "Ending"; // Замените на точное имя вашей сцены концовки
                 SceneManager.LoadScene("LoadingScreen");
             }
         }

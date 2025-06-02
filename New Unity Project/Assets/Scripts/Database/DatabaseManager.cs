@@ -79,62 +79,94 @@ public class DatabaseManager : MonoBehaviour
     }
 
     private void CreateOrUpdateTables()
+{
+    if (dbConnection == null || dbConnection.State != ConnectionState.Open)
     {
-        // добавить лвлы (импорты)
-        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        Debug.LogError("Невозможно создать таблицы: соединение с БД не открыто.");
+        return;
+    }
+
+    string[] createTableSqls = new string[]
+    {
+        @"CREATE TABLE IF NOT EXISTS Players (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            playerName TEXT NOT NULL UNIQUE,
+            creationDate INTEGER,
+            lastPlayedDate INTEGER
+        );",
+        @"CREATE TABLE IF NOT EXISTS Levels (
+            id INTEGER PRIMARY KEY,
+            levelName TEXT NOT NULL,
+            sceneName TEXT NOT NULL,
+            ""order"" INTEGER UNIQUE,
+            description TEXT
+        );",
+        @"CREATE TABLE IF NOT EXISTS PlayerProgress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            playerId INTEGER NOT NULL,
+            levelId INTEGER NOT NULL,
+            isUnlocked INTEGER DEFAULT 0,
+            isCompleted INTEGER DEFAULT 0,
+            bestTime REAL DEFAULT 0.0,
+            score INTEGER DEFAULT 0,
+            attempts INTEGER DEFAULT 0,
+            lastPlayedTime INTEGER DEFAULT 0,
+            FOREIGN KEY (playerId) REFERENCES Players(id) ON DELETE CASCADE,
+            FOREIGN KEY (levelId) REFERENCES Levels(id) ON DELETE CASCADE,
+            UNIQUE (playerId, levelId)
+        );",
+        @"CREATE TABLE IF NOT EXISTS UserSettings (
+            playerId INTEGER PRIMARY KEY,
+            soundVolume REAL DEFAULT 1.0,
+            musicVolume REAL DEFAULT 1.0,
+            resolutionWidth INTEGER DEFAULT 1920,
+            FOREIGN KEY (playerId) REFERENCES Players(id) ON DELETE CASCADE
+        );"
+    };
+
+    foreach (string sql in createTableSqls)
+    {
+        using (IDbCommand dbcmd = dbConnection.CreateCommand())
         {
-            Debug.LogError("Невозможно создать таблицы: соединение с БД не открыто.");
-            return;
+            dbcmd.CommandText = sql;
+            dbcmd.ExecuteNonQuery();
+            Debug.Log($"Таблица создана или существует: {sql.Substring(0, Mathf.Min(sql.Length, 50))}...");
         }
+    }
 
-        string[] createTableSqls = new string[]
-        {
-            @"CREATE TABLE IF NOT EXISTS Players (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                playerName TEXT NOT NULL UNIQUE,
-                creationDate INTEGER,
-                lastPlayedDate INTEGER
-            );",
-            @"CREATE TABLE IF NOT EXISTS Levels (
-                id INTEGER PRIMARY KEY,
-                levelName TEXT NOT NULL,
-                sceneName TEXT NOT NULL,
-                ""order"" INTEGER UNIQUE,
-                description TEXT
-            );",
-            @"CREATE TABLE IF NOT EXISTS PlayerProgress (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                playerId INTEGER NOT NULL,
-                levelId INTEGER NOT NULL,
-                isUnlocked INTEGER DEFAULT 0,
-                isCompleted INTEGER DEFAULT 0,
-                bestTime REAL DEFAULT 0.0,
-                score INTEGER DEFAULT 0,
-                attempts INTEGER DEFAULT 0,
-                lastPlayedTime INTEGER DEFAULT 0,
-                FOREIGN KEY (playerId) REFERENCES Players(id) ON DELETE CASCADE,
-                FOREIGN KEY (levelId) REFERENCES Levels(id) ON DELETE CASCADE,
-                UNIQUE (playerId, levelId)
-            );",
-            @"CREATE TABLE IF NOT EXISTS UserSettings (
-                playerId INTEGER PRIMARY KEY,
-                soundVolume REAL DEFAULT 1.0,
-                musicVolume REAL DEFAULT 1.0,
-                resolutionWidth INTEGER DEFAULT 1920,
-                FOREIGN KEY (playerId) REFERENCES Players(id) ON DELETE CASCADE
-            );"
-        };
+    // --- НОВЫЙ БЛОК: Вставка стартовых данных для Levels (если их еще нет) ---
+    Debug.Log("Попытка вставить начальные данные в таблицу Levels...");
 
-        foreach (string sql in createTableSqls)
+    // Используем INSERT OR IGNORE, чтобы не вставлять записи, если они уже существуют (по id или order UNIQUE)
+    string[] insertLevelSqls = new string[]
+    {
+        "INSERT OR IGNORE INTO Levels (id, levelName, sceneName, \"order\", description) VALUES (1, 'Первый Уровень', 'Level0', 1, 'Это самый первый уровень игры.');",
+        "INSERT OR IGNORE INTO Levels (id, levelName, sceneName, \"order\", description) VALUES (2, 'Второй Уровень', 'Level1', 2, 'Продолжение приключения.');",
+        "INSERT OR IGNORE INTO Levels (id, levelName, sceneName, \"order\", description) VALUES (3, 'Третий Уровень', 'Level2', 3, 'Еще более сложные испытания.');",
+        "INSERT OR IGNORE INTO Levels (id, levelName, sceneName, \"order\", description) VALUES (4, 'Четвертый Уровень', 'Level3', 4, 'Приближаемся к финалу.');",
+        "INSERT OR IGNORE INTO Levels (id, levelName, sceneName, \"order\", description) VALUES (5, 'Пятый Уровень', 'Level4', 5, 'Финальное сражение!');"
+        // Добавьте сюда другие уровни, если они у вас есть
+    };
+
+    foreach (string sql in insertLevelSqls)
+    {
+        using (IDbCommand dbcmd = dbConnection.CreateCommand())
         {
-            using (IDbCommand dbcmd = dbConnection.CreateCommand())
+            dbcmd.CommandText = sql;
+            // ExecuteNonQuery() возвращает количество затронутых строк. 0, если IGNORE сработал.
+            int rowsAffected = dbcmd.ExecuteNonQuery(); 
+            if (rowsAffected > 0)
             {
-                dbcmd.CommandText = sql;
-                dbcmd.ExecuteNonQuery();
-                Debug.Log($"Таблица создана или существует: {sql.Substring(0, Mathf.Min(sql.Length, 50))}...");
+                Debug.Log($"Уровень вставлен: {sql.Substring(0, Mathf.Min(sql.Length, 50))}...");
+            }
+            else
+            {
+                //Debug.Log($"Уровень уже существует или не вставлен: {sql.Substring(0, Mathf.Min(sql.Length, 50))}...");
             }
         }
     }
+    Debug.Log("Завершено добавление/проверка начальных данных в Levels.");
+}
 
     private void AddParameter(IDbCommand command, string name, object value)
     {
@@ -284,6 +316,297 @@ public class DatabaseManager : MonoBehaviour
         return sceneName;
     }
 
+    /// <summary>
+    /// Получает информацию об уровне по имени сцены.
+    /// </summary>
+    public LevelData GetLevelDataBySceneName(string sceneName) // <-- НОВЫЙ МЕТОД
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно получить данные уровня.");
+            return null;
+        }
+
+        LevelData level = null;
+        string sql = "SELECT id, levelName, sceneName, \"order\", description FROM Levels WHERE sceneName = @sceneName;";
+        using (IDbCommand command = dbConnection.CreateCommand())
+        {
+            command.CommandText = sql;
+            AddParameter(command, "@sceneName", sceneName);
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    level = new LevelData
+                    {
+                        id = reader.GetInt32(0),
+                        levelName = reader.GetString(1),
+                        sceneName = reader.GetString(2),
+                        order = reader.GetInt32(3),
+                        description = reader.GetString(4)
+                    };
+                }
+            }
+        }
+        return level;
+    }
+
+    /// <summary>
+    /// Получает информацию об уровне по его порядку.
+    /// </summary>
+    public LevelData GetLevelDataByOrder(int order) // <-- НОВЫЙ МЕТОД
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно получить данные уровня.");
+            return null;
+        }
+
+        LevelData level = null;
+        string sql = "SELECT id, levelName, sceneName, \"order\", description FROM Levels WHERE \"order\" = @order;";
+        using (IDbCommand command = dbConnection.CreateCommand())
+        {
+            command.CommandText = sql;
+            AddParameter(command, "@order", order);
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    level = new LevelData
+                    {
+                        id = reader.GetInt32(0),
+                        levelName = reader.GetString(1),
+                        sceneName = reader.GetString(2),
+                        order = reader.GetInt32(3),
+                        description = reader.GetString(4)
+                    };
+                }
+            }
+        }
+        return level;
+    }
+
+    /// <summary>
+    /// Устанавливает статус завершения уровня для игрока и обновляет статистику уровня (очки, время).
+    /// Попытки управляются отдельно через IncrementLevelAttempts.
+    /// </summary>
+    public void SetLevelCompleted(int playerId, int levelId, bool completed, float newBestTime, int newScore)
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно обновить прогресс уровня.");
+            return;
+        }
+
+        // 1. Получаем текущие данные прогресса для этого уровня.
+        // Если запись уже есть, мы ее обновим; если нет, создадим новую.
+        PlayerProgressData currentProgress = GetPlayerProgressForLevel(playerId, levelId);
+
+        // Инициализируем значения для обновления
+        float finalBestTime = currentProgress != null ? currentProgress.bestTime : 0.0f;
+        int finalScore = currentProgress != null ? currentProgress.score : 0;
+        int totalAttempts = currentProgress != null ? currentProgress.attempts : 0; // Попытки не меняются здесь
+        bool isUnlockedStatus = currentProgress != null ? currentProgress.isUnlocked : false; // Сохраняем статус разблокировки
+
+
+        if (newBestTime > 0) // Если новое время валидно
+        {
+            if (finalBestTime == 0.0f || newBestTime < finalBestTime) // Если старого времени не было (0) или новое время лучше
+            {
+                finalBestTime = newBestTime;
+            }
+        }
+        
+        if (newScore > finalScore) // Если новый счет лучше старого
+        {
+            finalScore = newScore;
+        }
+
+        // Определяем, нужно ли вставлять новую запись или обновлять существующую
+        if (currentProgress == null)
+        {
+            // ЗАПИСИ НЕТ: Вставляем новую запись (например, если игрок почему-то не был инициализирован)
+            // Примечание: CreateNewPlayer должен был создать запись, так что этот сценарий маловероятен.
+            string insertSql = @"
+                INSERT INTO PlayerProgress 
+                (playerId, levelId, isUnlocked, isCompleted, bestTime, score, attempts, lastPlayedTime) 
+                VALUES (@playerId, @levelId, @isUnlocked, @isCompleted, @finalBestTime, @finalScore, @totalAttempts, strftime('%s', 'now'));";
+
+            using (IDbCommand command = dbConnection.CreateCommand())
+            {
+                command.CommandText = insertSql;
+                AddParameter(command, "@playerId", playerId);
+                AddParameter(command, "@levelId", levelId);
+                AddParameter(command, "@isUnlocked", isUnlockedStatus ? 1 : 0); // По умолчанию разблокирован, если нет старой записи
+                AddParameter(command, "@isCompleted", completed ? 1 : 0);
+                AddParameter(command, "@finalBestTime", finalBestTime);
+                AddParameter(command, "@finalScore", finalScore);
+                AddParameter(command, "@totalAttempts", totalAttempts); // Пока 0, будет обновляться IncrementLevelAttempts
+                command.ExecuteNonQuery();
+                Debug.Log($"Прогресс игрока {playerId} для уровня {levelId} ВСТАВЛЕН: Завершено={completed}, Лучшее время={finalBestTime}, Счет={finalScore}, Попытки={totalAttempts}.");
+            }
+        }
+        else
+        {
+            // ЗАПИСЬ СУЩЕСТВУЕТ: Обновляем ее
+            string updateSql = @"
+                UPDATE PlayerProgress 
+                SET isCompleted = @isCompleted, 
+                    bestTime = @finalBestTime, 
+                    score = @finalScore, 
+                    lastPlayedTime = strftime('%s', 'now') 
+                WHERE playerId = @playerId AND levelId = @levelId;";
+
+            using (IDbCommand command = dbConnection.CreateCommand())
+            {
+                command.CommandText = updateSql;
+                AddParameter(command, "@isCompleted", completed ? 1 : 0);
+                AddParameter(command, "@finalBestTime", finalBestTime);
+                AddParameter(command, "@finalScore", finalScore);
+                AddParameter(command, "@playerId", playerId);
+                AddParameter(command, "@levelId", levelId);
+                command.ExecuteNonQuery();
+                Debug.Log($"Прогресс игрока {playerId} для уровня {levelId} ОБНОВЛЕН: Завершено={completed}, Лучшее время={finalBestTime}, Счет={finalScore}.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Увеличивает количество попыток для прохождения уровня для данного игрока.
+    /// Этот метод нужно вызывать, например, при каждой новой попытке или смерти.
+    /// </summary>
+    public void IncrementLevelAttempts(int playerId, int levelId) 
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно увеличить попытки.");
+            return;
+        }
+
+        PlayerProgressData currentProgress = GetPlayerProgressForLevel(playerId, levelId);
+        int newAttempts = (currentProgress != null ? currentProgress.attempts : 0) + 1;
+
+        if (currentProgress == null)
+        {
+            // ЗАПИСИ НЕТ: Вставляем новую запись с увеличенными попытками
+            string insertSql = @"
+                INSERT INTO PlayerProgress 
+                (playerId, levelId, isUnlocked, isCompleted, bestTime, score, attempts, lastPlayedTime) 
+                VALUES (@playerId, @levelId, 0, 0, 0.0, 0, @newAttempts, strftime('%s', 'now'));";
+
+            using (IDbCommand command = dbConnection.CreateCommand())
+            {
+                command.CommandText = insertSql;
+                AddParameter(command, "@playerId", playerId);
+                AddParameter(command, "@levelId", levelId);
+                AddParameter(command, "@newAttempts", newAttempts);
+                command.ExecuteNonQuery();
+                Debug.Log($"Попытки игрока {playerId} для уровня {levelId} ВСТАВЛЕНЫ: {newAttempts}.");
+            }
+        }
+        else
+        {
+            // ЗАПИСЬ СУЩЕСТВУЕТ: Обновляем только попытки и lastPlayedTime
+            string updateSql = @"
+                UPDATE PlayerProgress 
+                SET attempts = @newAttempts, 
+                    lastPlayedTime = strftime('%s', 'now') 
+                WHERE playerId = @playerId AND levelId = @levelId;";
+
+            using (IDbCommand command = dbConnection.CreateCommand())
+            {
+                command.CommandText = updateSql;
+                AddParameter(command, "@newAttempts", newAttempts);
+                AddParameter(command, "@playerId", playerId);
+                AddParameter(command, "@levelId", levelId);
+                command.ExecuteNonQuery();
+                Debug.Log($"Попытки игрока {playerId} для уровня {levelId} ОБНОВЛЕНЫ до {newAttempts}.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Получает текущую запись прогресса для конкретного игрока и уровня.
+    /// Это вспомогательный метод для SetLevelCompleted и IncrementLevelAttempts.
+    /// </summary>
+    public PlayerProgressData GetPlayerProgressForLevel(int playerId, int levelId) 
+    {
+        // ... (код метода без изменений) ...
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно получить текущий прогресс уровня.");
+            return null;
+        }
+
+        PlayerProgressData progressData = null;
+        string sql = "SELECT id, playerId, levelId, isUnlocked, isCompleted, bestTime, score, attempts, lastPlayedTime FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId;";
+        
+        using (IDbCommand command = dbConnection.CreateCommand())
+        {
+            command.CommandText = sql;
+            AddParameter(command, "@playerId", playerId);
+            AddParameter(command, "@levelId", levelId);
+
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    progressData = new PlayerProgressData
+                    {
+                        id = reader.GetInt32(0),
+                        playerId = reader.GetInt32(1),
+                        levelId = reader.GetInt32(2),
+                        isUnlocked = reader.GetInt32(3) == 1,
+                        isCompleted = reader.GetInt32(4) == 1,
+                        bestTime = reader.GetFloat(5),
+                        score = reader.GetInt32(6),
+                        attempts = reader.GetInt32(7),
+                        lastPlayedTime = reader.GetInt64(8)
+                    };
+                }
+            }
+        }
+        return progressData;
+    }
+    
+
+    /// <summary>
+    /// Устанавливает статус разблокировки уровня для игрока.
+    /// </summary>
+    public void SetLevelUnlocked(int playerId, int levelId, bool unlocked) // <-- НОВЫЙ МЕТОД
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно обновить прогресс уровня.");
+            return;
+        }
+
+        string sql = @"
+            INSERT OR REPLACE INTO PlayerProgress 
+            (id, playerId, levelId, isUnlocked, isCompleted, bestTime, score, attempts, lastPlayedTime) 
+            VALUES (
+                (SELECT id FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId),
+                @playerId, 
+                @levelId, 
+                @isUnlocked, 
+                (SELECT isCompleted FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId), -- сохраняем текущий статус завершения
+                (SELECT bestTime FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId), 
+                (SELECT score FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId), 
+                (SELECT attempts FROM PlayerProgress WHERE playerId = @playerId AND levelId = @levelId), 
+                strftime('%s', 'now')
+            );"; // Обновляем lastPlayedTime
+
+        using (IDbCommand command = dbConnection.CreateCommand())
+        {
+            command.CommandText = sql;
+            AddParameter(command, "@playerId", playerId);
+            AddParameter(command, "@levelId", levelId);
+            AddParameter(command, "@isUnlocked", unlocked ? 1 : 0);
+            command.ExecuteNonQuery();
+            Debug.Log($"Прогресс игрока {playerId} для уровня {levelId}: isUnlocked = {unlocked}.");
+        }
+    }
+    
     // НОВЫЙ МЕТОД: Получение списка всех игроков
     public List<PlayerData> GetAllPlayers() // <-- ДОБАВЛЕНО
     {
@@ -306,7 +629,7 @@ public class DatabaseManager : MonoBehaviour
                     {
                         id = reader.GetInt32(0),
                         playerName = reader.GetString(1),
-                        creationDate = reader.GetInt64(2), 
+                        creationDate = reader.GetInt64(2),
                         lastPlayedDate = reader.GetInt64(3)
                     });
                 }
@@ -374,6 +697,44 @@ public class DatabaseManager : MonoBehaviour
         return progressData;
     }
 
+    /// <summary>
+    /// Получает информацию об игроке по его ID.
+    /// </summary>
+    public PlayerData GetPlayerById(int playerId) // <-- ВОЗВРАЩАЕМ ЭТОТ МЕТОД
+    {
+        if (dbConnection == null || dbConnection.State != ConnectionState.Open)
+        {
+            Debug.LogError("Соединение с БД не открыто. Невозможно получить данные игрока по ID.");
+            return null;
+        }
+
+        PlayerData player = null;
+        
+        // В этом методе мы не будем считать isGameCompleted, т.к. вы просили убрать эту логику.
+        // Если понадобится isGameCompleted, ее можно будет добавить обратно здесь.
+
+        string sql = "SELECT id, playerName, creationDate, lastPlayedDate FROM Players WHERE id = @playerId;";
+        using (IDbCommand command = dbConnection.CreateCommand())
+        {
+            command.CommandText = sql;
+            AddParameter(command, "@playerId", playerId);
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    player = new PlayerData
+                    {
+                        id = reader.GetInt32(0),
+                        playerName = reader.GetString(1),
+                        creationDate = reader.GetInt64(2),
+                        lastPlayedDate = reader.GetInt64(3)
+                        // isGameCompleted = false; // Нет смысла устанавливать, если не рассчитывается
+                    };
+                }
+            }
+        }
+        return player;
+    }
 
     // Классы для представления данных (можете сделать их в отдельных файлах)
     public class PlayerData

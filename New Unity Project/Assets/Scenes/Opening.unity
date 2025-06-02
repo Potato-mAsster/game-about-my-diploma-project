@@ -3839,7 +3839,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 41f9a2f8e0e8e8b4d945f46c3bbbd6c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextLevelName: Level0
+  nextLevelName: MainMenu
   animationStateName: openingPlayer
 --- !u!82 &1833232269
 AudioSource:
