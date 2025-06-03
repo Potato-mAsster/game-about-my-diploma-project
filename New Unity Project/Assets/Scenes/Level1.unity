@@ -1586,11 +1586,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 622074802}
-  m_RootOrder: 2
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -852, y: 410}
+  m_AnchoredPosition: {x: -903, y: 339}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &96063067
@@ -12414,7 +12414,7 @@ RectTransform:
   - {fileID: 1456706619}
   - {fileID: 320048745}
   m_Father: {fileID: 622074802}
-  m_RootOrder: 8
+  m_RootOrder: 6
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -12587,15 +12587,15 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 19051694}
   - {fileID: 1099561198}
   - {fileID: 96063066}
   - {fileID: 1787166471}
   - {fileID: 1315650508}
   - {fileID: 1445092050}
   - {fileID: 833793816}
-  - {fileID: 755600694}
   - {fileID: 603043039}
+  - {fileID: 19051694}
+  - {fileID: 755600694}
   m_Father: {fileID: 0}
   m_RootOrder: 14
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -15304,7 +15304,7 @@ RectTransform:
   - {fileID: 1047348452}
   - {fileID: 880363485}
   m_Father: {fileID: 622074802}
-  m_RootOrder: 7
+  m_RootOrder: 8
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -17187,7 +17187,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 622074802}
-  m_RootOrder: 6
+  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -21939,7 +21939,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 622074802}
-  m_RootOrder: 1
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -23703,7 +23703,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 604043145573380572, guid: d96cd0f2bbdedde4890a65f159ea06b8, type: 3}
       propertyPath: m_RootOrder
-      value: 0
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 604043145573380572, guid: d96cd0f2bbdedde4890a65f159ea06b8, type: 3}
       propertyPath: m_AnchorMax.x
@@ -25863,7 +25863,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   musicVolumeSlider: {fileID: 101552339}
   sfxVolumeSlider: {fileID: 273182067}
-  resolutionDropdown: {fileID: 1791300554}
+  resolutionDropdown: {fileID: 0}
   settingsPanelUI: {fileID: 19051693}
   mainMixer: {fileID: 24100000, guid: 8cbeea357f3795042be5bcf86cdbed51, type: 2}
 --- !u!4 &1263786077
@@ -27211,11 +27211,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 622074802}
-  m_RootOrder: 4
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 854, y: 442}
+  m_AnchoredPosition: {x: 854, y: 366}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1315650510
@@ -29493,7 +29493,7 @@ RectTransform:
   m_Children:
   - {fileID: 682164081}
   m_Father: {fileID: 622074802}
-  m_RootOrder: 5
+  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -37620,11 +37620,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 622074802}
-  m_RootOrder: 3
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -594, y: 412}
+  m_AnchoredPosition: {x: -644.99994, y: 341.00006}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1787166472
@@ -37826,17 +37826,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 5151618757402935977, guid: 8392cfe143f9a04498c8a1479b8ca0fb, type: 3}
---- !u!114 &1791300554 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 604043145694399983, guid: d96cd0f2bbdedde4890a65f159ea06b8, type: 3}
-  m_PrefabInstance: {fileID: 1192081785}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b743370ac3e4ec2a1668f5455a8ef8a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1795078617
 GameObject:
   m_ObjectHideFlags: 0
