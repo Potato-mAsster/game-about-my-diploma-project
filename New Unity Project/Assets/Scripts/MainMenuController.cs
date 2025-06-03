@@ -64,8 +64,8 @@ public class MainMenuController : MonoBehaviour
         }
 
         // При старте MainMenu, убедимся, что курсор виден
-        Cursor.lockState = CursorLockMode.None; // Разблокировать курсор
-        Cursor.visible = true; // Сделать курсор видимым
+        // Cursor.lockState = CursorLockMode.None; // Разблокировать курсор
+        // Cursor.visible = true; // Сделать курсор видимым
         Debug.Log("[MainMenuController] Курсор разблокирован и виден.");
 
         // Устанавливаем начальное состояние панелей: главное меню активно, остальные скрыты
